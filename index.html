@@ -28,7 +28,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Compiled Tailwind CSS v4 Production Build -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=2026102502">
+  <link rel="stylesheet" href="css/tailwind.min.css?v=2026102504">
   
   <!-- SheetJS, jsQR, QRCode.js, Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -37,11 +37,12 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   
   <!-- Core Logic Scripts -->
-  <script src="js/omr-engine.js?v=2026102502"></script>
-  <script src="js/app.js?v=2026102502"></script>
+  <script src="js/omr-engine.js?v=2026102504"></script>
+  <script src="js/app.js?v=2026102504"></script>
+  <script src="js/features.js?v=2026102504"></script>
   
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/style.css?v=2026102502">
+  <link rel="stylesheet" href="css/style.css?v=2026102504">
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-full flex flex-col font-sans">
 
@@ -103,7 +104,7 @@
       <button id="tabBtn_exams" onclick="window.switchTab('exams')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
         <span>🔑 Đáp án</span>
       </button>
-      <button id="tabBtn_scan" onclick="window.switchTab('scan')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
+      <button id="tabBtn_scan" onclick="window.openGradeExamPicker()" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
         <span>📷 Chấm bài</span>
       </button>
       <button id="tabBtn_classes" onclick="window.switchTab('classes')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
@@ -129,7 +130,19 @@
 
     <!-- ================= TAB 0: TỔNG QUAN BÀI THI (EXAM HUB) ================= -->
     <div id="tabContent_hub" class="tab-content space-y-4 max-w-2xl mx-auto">
-      
+
+      <!-- DANH SÁCH TẤT CẢ BÀI KIỂM TRA (mỗi bài có nút Chấm) -->
+      <div id="hubExamList"></div>
+
+      <!-- Màn hình trống khi chưa có bài -->
+      <div id="hubEmptyState" class="hidden bg-white dark:bg-slate-900 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        <div class="text-3xl">📝</div>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Chưa có bài kiểm tra nào</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Tạo bài kiểm tra, chọn loại phiếu và nạp đáp án để bắt đầu chấm.</p>
+        <button onclick="window.showCreateExamModal()" class="btn-primary py-2.5 px-6 rounded-xl text-xs font-bold">+ Tạo bài kiểm tra</button>
+      </div>
+
+      <div id="hubExamPanel" class="space-y-4">
       <!-- Thanh tiêu đề bài kiểm tra đang mở -->
       <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3">
         <div class="min-w-0">
@@ -170,7 +183,7 @@
         </div>
 
         <!-- 2. Chấm bài -->
-        <div onclick="window.switchTab('scan')" class="hub-action-card">
+        <div onclick="window.gradeExam(window.appState.data.currentExamId)" class="hub-action-card">
           <div class="flex items-center space-x-3.5">
             <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-lg">
               📷
@@ -279,6 +292,7 @@
           i
         </button>
       </div>
+      </div><!-- /hubExamPanel -->
 
     </div>
 
@@ -288,9 +302,10 @@
         
         <!-- Thanh điều hướng nhanh trên đầu khung quét -->
         <div class="w-full max-w-[480px] flex items-center justify-between bg-white dark:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm text-xs">
-          <button onclick="window.switchTab('hub')" class="font-semibold text-slate-600 dark:text-slate-300 hover:underline flex items-center space-x-1 truncate max-w-[200px]">
-            <span>←</span>
-            <strong id="scanHeaderExamName" class="text-slate-900 dark:text-white truncate">Ktra1</strong>
+          <button onclick="window.openGradeExamPicker()" title="Đổi bài cần chấm" class="text-left min-w-0 flex-1 mr-2 group">
+            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Đang chấm bài <span class="text-blue-600 dark:text-blue-400 normal-case group-hover:underline">· Đổi bài ⇄</span></div>
+            <strong id="scanHeaderExamName" class="block text-slate-900 dark:text-white truncate">Ktra1</strong>
+            <div id="scanHeaderExamMeta" class="text-[10px] text-slate-500 dark:text-slate-400 truncate"></div>
           </button>
           <div class="flex items-center space-x-2 shrink-0">
             <button onclick="window.switchTab('results')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200">
@@ -413,10 +428,13 @@
         <!-- Toolbar Buttons: Excel, QR Code, Thêm mã đề -->
         <div class="flex flex-wrap items-center gap-1.5">
           <button onclick="window.triggerExcelKeyUpload()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm font-semibold">
-            <span>📥 Nạp Excel</span>
+            <span title="Hỗ trợ file chuẩn QM, SmartTest, YoungMix">📥 Nạp Excel (QM · SmartTest · YoungMix)</span>
           </button>
-          <button onclick="window.downloadExcelKeyTemplate()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm">
+          <a href="samples/Mau_Dap_An_QM.xlsx" download="Mau_Dap_An_QM.xlsx" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm" title="File đáp án mẫu chuẩn QM">
             <span>⬇️ File mẫu (.xlsx)</span>
+          </a>
+          <button onclick="window.downloadExcelKeyTemplate()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm" title="Xuất toàn bộ mã đề ra Excel chuẩn QM">
+            <span>📤 Xuất đáp án</span>
           </button>
           <button onclick="window.openQRScannerModal()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm">
             <span>📷 Quét QR</span>
@@ -464,6 +482,9 @@
             </button>
           </div>
         </div>
+
+        <!-- BÀI KIỂM TRA ĐƯỢC GÁN CHO LỚP -->
+        <div id="classAssignedExams"></div>
 
         <!-- 2 KHỐI CÔNG CỤ: THÊM THỦ CÔNG & EXCEL -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -766,7 +787,7 @@
       <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
       <span>Đáp án</span>
     </button>
-    <button id="mobileTabBtn_scan" onclick="window.switchTab('scan')" class="mobile-nav-item">
+    <button id="mobileTabBtn_scan" onclick="window.openGradeExamPicker()" class="mobile-nav-item">
       <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
       <span>Chấm</span>
     </button>
@@ -1048,6 +1069,23 @@
     </div>
   </div>
 
+  <!-- MODAL: CHỌN BÀI CẦN CHẤM -->
+  <div id="gradeExamPickerModal" onclick="if(event.target===this) window.closeGradeExamPicker()" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-slate-800 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Chọn bài cần chấm</h3>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">Phiếu sẽ được chấm theo đáp án &amp; cấu hình của bài được chọn</p>
+        </div>
+        <button onclick="window.closeGradeExamPicker()" class="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
+      </div>
+      <div id="gradeExamPickerList" class="overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 -mx-1"></div>
+      <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+        <button onclick="window.closeGradeExamPicker(); window.showCreateExamModal()" class="btn-secondary w-full py-2 rounded-lg text-xs font-semibold">+ Tạo bài kiểm tra mới</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: QUÉT MÃ QR ĐÁP ÁN -->
   <div id="qrScannerModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-200 dark:border-slate-800 text-center">
@@ -1062,6 +1100,12 @@
       </div>
 
       <p id="qrCameraStatus" class="text-xs text-slate-500 dark:text-slate-400 mt-2.5">Hướng camera vào mã QR đáp án thi</p>
+
+      <div class="mt-3 text-left">
+        <label for="qrManualText" class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Hoặc dán nội dung mã QR:</label>
+        <textarea id="qrManualText" rows="2" placeholder='{"0101":"DCBA...#ĐĐSS_SSĐS#-4_71,7","type":6} hoặc [["0101","D","C",...]]' class="mt-1 w-full py-1.5 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[11px] focus:outline-none focus:border-blue-600"></textarea>
+        <button onclick="window.importQRFromTextarea()" class="btn-primary w-full mt-1.5 py-1.5 rounded-lg text-xs font-bold">Nạp từ nội dung đã dán</button>
+      </div>
 
       <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center space-x-2">
         <label class="btn-secondary cursor-pointer py-1.5 px-3 rounded-lg text-xs font-semibold shadow-sm">

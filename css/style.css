@@ -615,3 +615,15 @@ html.dark .mobile-nav-item.active {
   background: var(--border-subtle);
   border-radius: 9999px;
 }
+
+/* ===== DANH SÁCH BÀI KIỂM TRA (hub / chọn bài chấm / lớp học) ===== */
+.exam-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; transition: background .15s; }
+.exam-row[role="button"] { cursor: pointer; }
+.exam-row:hover { background: #f8fafc; }
+.dark .exam-row:hover { background: rgba(30, 41, 59, .5); }
+.exam-row-current { box-shadow: inset 3px 0 0 #2563eb; background: #f8fafc; }
+.dark .exam-row-current { background: rgba(30, 41, 59, .45); }
+.exam-chip { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; }
+.exam-chip-accent { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.dark .exam-chip-accent { background: rgba(23, 37, 84, .6); color: #93c5fd; border-color: #1e40af; }
+@media (max-width: 480px) { .exam-row { flex-wrap: wrap; } .exam-row > div:last-child { width: 100%; justify-content: flex-end; } }
