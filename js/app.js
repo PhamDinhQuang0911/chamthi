@@ -1,61 +1,88 @@
 /**
  * ỨNG DỤNG QUẢN LÝ VÀ CHẤM THI TRẮC NGHIỆM TRỰC TUYẾN - QMATH OMR 2025
- * Hỗ trợ:
- * - Chọn nhiều loại phiếu chấm (Chuẩn BGD 2025 1239, 40 câu, 50 câu, QMATH, TNMK, Azota)
- * - Khung hiển thị đáp án trực quan như phiếu thi (Interactive Bubble Answer Sheet)
- * - Nạp mã đề và bảng đáp án bằng FILE EXCEL (.xlsx) & MÃ QR (Camera & File ảnh QR)
- * - Xuất mã QR chia sẻ đáp án & Tải file Excel mẫu
- * - Chấm bài qua Camera / Tải ảnh, Xuất kết quả Excel đa trang
+ * Phiên bản chuẩn hóa - Giao diện tối giản đồng nhất - Hỗ trợ Mobile Navigation Bar
  * Bản quyền: QMATH (chamthi.qmath.io.vn)
  */
 
-const STORAGE_KEY = "QMATH_OMR_DATA_V2";
-
-// Danh mục các loại phiếu thi chuẩn hóa
+// BẢNG DANH MỤC ĐẦY ĐỦ 12 MẪU PHIẾU THI TỪ APP GỐC QM
 const SHEET_TYPES = {
   "A4_TN2025_BGD_1239": {
     name: "A4 - Chuẩn Bộ GD&ĐT 2025 (1239)",
     desc: "12 câu TN (3.0đ) + 4 câu Đúng/Sai (4.0đ) + 6 câu Trả lời ngắn (3.0đ)",
-    p1_num: 12, p2_num: 4, p3_num: 6,
-    p1_score: 0.25, p3_score: 0.5
+    file: "a4_tn2025_bgd_1239.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
   },
   "A4_TN2025_QM_1239": {
     name: "A4 - Chuẩn QMATH 2025 (1239)",
-    desc: "12 câu TN (3.0đ) + 4 câu Đúng/Sai (4.0đ) + 6 câu Trả lời ngắn (3.0đ) - Tối ưu quang học",
-    p1_num: 12, p2_num: 4, p3_num: 6,
-    p1_score: 0.25, p3_score: 0.5
+    desc: "12 câu TN + 4 câu Đ/S + 6 câu TLN (Bản vẽ chuẩn nét cao của QMATH)",
+    file: "a4_tn2025_qm_1239.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
   },
-  "A4_TN2025_BGD_40": {
-    name: "A4 - Trắc Nghiệm 40 câu thuần túy (Bộ GD&ĐT)",
-    desc: "40 câu trắc nghiệm 4 lựa chọn A, B, C, D (0.25đ/câu)",
-    p1_num: 40, p2_num: 0, p3_num: 0,
-    p1_score: 0.25, p3_score: 0.0
-  },
-  "A4_TN_50": {
-    name: "A4 - Trắc Nghiệm 50 câu (Mẫu truyền thống)",
-    desc: "50 câu trắc nghiệm 4 lựa chọn A, B, C, D (0.2đ/câu)",
-    p1_num: 50, p2_num: 0, p3_num: 0,
-    p1_score: 0.2, p3_score: 0.0
-  },
-  "A4_TNMK_2025": {
+  "A4_TN2025_TNMK_1239": {
     name: "A4 - Chuẩn TNMaker 2025 (1239)",
-    desc: "Tương thích phiếu chấm TNMaker 2025 (12 TN + 4 Đ/S + 6 TLN)",
-    p1_num: 12, p2_num: 4, p3_num: 6,
-    p1_score: 0.25, p3_score: 0.5
+    desc: "12 câu TN + 4 câu Đ/S + 6 câu TLN (Tương thích phiếu TNMaker 2025)",
+    file: "a4_tn2025_tnmk_1239.jpg",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
   },
-  "A4_AZOTA_2025": {
+  "A4_TN2025_AZOTA": {
     name: "A4 - Chuẩn Azota 2025",
-    desc: "Tương thích phiếu trả lời trắc nghiệm Azota 2025",
-    p1_num: 12, p2_num: 4, p3_num: 6,
-    p1_score: 0.25, p3_score: 0.5
+    desc: "Phiếu trả lời trắc nghiệm chuẩn Azota năm học 2025",
+    file: "a4_tn2025_azota.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
   },
-  "A5_TN_50": {
-    name: "A5 - Trắc Nghiệm 50 câu (Khổ A5 rút gọn)",
-    desc: "50 câu trắc nghiệm in trên khổ giấy A5 tiết kiệm (0.2đ/câu)",
-    p1_num: 50, p2_num: 0, p3_num: 0,
-    p1_score: 0.2, p3_score: 0.0
+  "A4_TNTL_2025_AZOTA": {
+    name: "A4 - Azota Tự Luận & Trắc Nghiệm 2025",
+    desc: "Kết hợp phần trắc nghiệm OMR và phần tự luận học sinh viết tay",
+    file: "a4_tntl_2025_azota.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
+  },
+  "A5_TN2025_AZOTA": {
+    name: "A5 - Chuẩn Azota Khổ Nhỏ",
+    desc: "Khổ giấy A5 (1/2 trang A4) nhỏ gọn, tiết kiệm chi phí in ấn",
+    file: "a5_tn2025_azota.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
+  },
+  "A4_TN2025_BGD": {
+    name: "A4 - Bộ GD&ĐT (40 câu trắc nghiệm)",
+    desc: "40 câu trắc nghiệm 4 lựa chọn A, B, C, D (0.25đ/câu = 10.0đ)",
+    file: "a4_tn2025_bgd.png",
+    p1_num: 40, p2_num: 0, p3_num: 0, p1_score: 0.25, p3_score: 0.0
+  },
+  "A4_TN2025_QM": {
+    name: "A4 - QMATH (40 câu trắc nghiệm)",
+    desc: "40 câu trắc nghiệm 4 lựa chọn bản chuẩn hóa QMATH",
+    file: "a4_tn2025_qm.png",
+    p1_num: 40, p2_num: 0, p3_num: 0, p1_score: 0.25, p3_score: 0.0
+  },
+  "A4_TN2025_TNMK": {
+    name: "A4 - TNMaker (40 câu trắc nghiệm)",
+    desc: "40 câu trắc nghiệm 4 lựa chọn chuẩn TNMaker",
+    file: "a4_tn2025_tnmk.png",
+    p1_num: 40, p2_num: 0, p3_num: 0, p1_score: 0.25, p3_score: 0.0
+  },
+  "A4_UNT_2025": {
+    name: "A4 - Phiếu Ôn Tập & Kiểm Tra (Có SBD)",
+    desc: "Dành cho kiểm tra định kỳ 15 phút, 1 tiết trên lớp",
+    file: "a4_unt_2025.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
+  },
+  "A4_UNT_NOSBD_2025": {
+    name: "A4 - Phiếu Ôn Tập Nhanh (Không cần SBD)",
+    desc: "Chỉ ghi tên học sinh, không cần tô 6 số báo danh",
+    file: "a4_unt_nosbd_2025.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
+  },
+  "UNT_2025_NGANG": {
+    name: "A4 - Phiếu Ôn Tập Khổ Ngang",
+    desc: "Khổ ngang thuận tiện cho bài thi kết hợp sơ đồ tư duy",
+    file: "unt_2025_ngang.png",
+    p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
   }
 };
+
+window.SHEET_TYPES = SHEET_TYPES;
+
+const STORAGE_KEY = "QMATH_OMR_DATA_V3";
 
 const defaultState = {
   currentTab: "scan",
@@ -83,11 +110,7 @@ const defaultState = {
       sheet_type: "A4_TN2025_BGD_1239",
       date: new Date().toISOString().split("T")[0],
       config: {
-        p1_num: 12,
-        p2_num: 4,
-        p3_num: 6,
-        p1_score: 0.25,
-        p3_score: 0.5
+        p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5
       },
       answerKeys: {
         "101": {
@@ -178,6 +201,7 @@ class AppState {
 }
 
 const appState = new AppState();
+window.appState = appState;
 
 // --- ÂM THANH BEEP THÔNG BÁO ---
 function playBeep(isSuccess = true) {
@@ -195,7 +219,7 @@ function playBeep(isSuccess = true) {
       osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.2);
     }
 
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
 
     osc.connect(gain);
@@ -203,9 +227,7 @@ function playBeep(isSuccess = true) {
 
     osc.start();
     osc.stop(audioCtx.currentTime + 0.18);
-  } catch (e) {
-    console.warn("AudioContext error:", e);
-  }
+  } catch (e) {}
 }
 
 // --- QUẢN LÝ CAMERA CHẤM BÀI ---
@@ -238,10 +260,16 @@ async function initCamera() {
     video.srcObject = activeStream;
     await video.play();
 
-    document.getElementById("cameraStatus").innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Camera đang sẵn sàng`;
+    const statusEl = document.getElementById("cameraStatus");
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1.5 animate-pulse"></span>Camera đang sẵn sàng`;
+    }
   } catch (err) {
     console.error("Camera access failed:", err);
-    document.getElementById("cameraStatus").innerHTML = `<span class="text-rose-500">Không thể mở camera (${err.name || "lỗi quyền"}). Hãy dùng nút "Tải ảnh từ máy"!</span>`;
+    const statusEl = document.getElementById("cameraStatus");
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-rose-600">Không thể mở camera (${err.name || "lỗi quyền"}). Hãy dùng nút "Tải ảnh từ máy"!</span>`;
+    }
   }
 }
 
@@ -294,14 +322,8 @@ function doGrade(sourceElement) {
     showResultModal(resultRecord);
     renderResultsTable();
 
-    const viewport = document.getElementById("scannerViewport");
-    if (viewport) {
-      viewport.classList.add("flash-success");
-      setTimeout(() => viewport.classList.remove("flash-success"), 400);
-    }
-
     if (res.total_score >= 9.0 && typeof confetti === "function") {
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
     }
   } catch (err) {
     console.error("Grading failed:", err);
@@ -324,9 +346,9 @@ function toggleAutoScan() {
   const btn = document.getElementById("btnAutoScan");
 
   if (isAutoScanActive) {
-    btn.classList.remove("bg-slate-700", "text-slate-200");
-    btn.classList.add("bg-emerald-600", "text-white", "animate-pulse");
-    btn.innerHTML = `⚡ Tự động quét: BẬT`;
+    btn.classList.remove("bg-slate-800", "text-slate-300");
+    btn.classList.add("bg-blue-600", "text-white");
+    btn.innerHTML = `⚡ Tự động: BẬT`;
 
     autoScanTimer = setInterval(() => {
       const video = document.getElementById("scannerVideo");
@@ -367,20 +389,14 @@ function toggleAutoScan() {
           appState.addResult(resultRecord);
           playBeep(true);
           renderResultsTable();
-
-          const viewport = document.getElementById("scannerViewport");
-          if (viewport) {
-            viewport.classList.add("flash-success");
-            setTimeout(() => viewport.classList.remove("flash-success"), 350);
-          }
         }
       } catch (e) {}
     }, 1500);
   } else {
     clearInterval(autoScanTimer);
-    btn.classList.remove("bg-emerald-600", "text-white", "animate-pulse");
-    btn.classList.add("bg-slate-700", "text-slate-200");
-    btn.innerHTML = `⚡ Tự động quét: TẮT`;
+    btn.classList.remove("bg-blue-600", "text-white");
+    btn.classList.add("bg-slate-800", "text-slate-300");
+    btn.innerHTML = `⚡ Tự động: TẮT`;
   }
 }
 
@@ -407,7 +423,6 @@ function gradeSampleSheet() {
   img.src = "samples/bai_thi_mau_101.png";
 }
 
-// --- POPUP KẾT QUẢ TỨC THÌ ---
 function showResultModal(record) {
   const modal = document.getElementById("resultModal");
   if (!modal) return;
@@ -418,7 +433,7 @@ function showResultModal(record) {
 
   const scoreEl = document.getElementById("modalTotalScore");
   scoreEl.innerText = record.total_score.toFixed(2);
-  scoreEl.className = `text-5xl font-extrabold ${record.total_score >= 8.0 ? 'text-emerald-500' : (record.total_score >= 5.0 ? 'text-sky-500' : 'text-rose-500')}`;
+  scoreEl.className = `text-4xl font-extrabold ${record.total_score >= 5.0 ? 'text-blue-600' : 'text-slate-800'}`;
 
   document.getElementById("modalP1Score").innerText = record.part1_score.toFixed(2) + " đ";
   document.getElementById("modalP2Score").innerText = record.part2_score.toFixed(2) + " đ";
@@ -434,12 +449,20 @@ function closeResultModal() {
 }
 
 // =========================================================================
-// === BẢNG HIỂN THỊ ĐÁP ÁN TRỰC QUAN NHƯ PHIẾU CHẤM (VISUAL ANSWER SHEET) ===
+// === BẢNG ĐÁP ÁN TRỰC QUAN (VISUAL BUBBLE ANSWER SHEET) ===
 // =========================================================================
 
 function renderVisualAnswerSheet() {
   const exam = appState.getCurrentExam();
   if (!exam) return;
+
+  // Cập nhật thông tin Header
+  const titleEl = document.getElementById("examDetailTitle");
+  const badgeEl = document.getElementById("examSheetBadge");
+  const sheetInfo = SHEET_TYPES[exam.sheet_type] || SHEET_TYPES["A4_TN2025_BGD_1239"];
+
+  if (titleEl) titleEl.innerText = exam.name;
+  if (badgeEl) badgeEl.innerText = sheetInfo.name;
 
   const container = document.getElementById("visualAnswerSheetContainer");
   const codeSelector = document.getElementById("visualCodeSelector");
@@ -451,70 +474,66 @@ function renderVisualAnswerSheet() {
     appState.save();
   }
 
-  // Đảm bảo activeMade hợp lệ
   if (!exam.answerKeys[appState.data.activeMade]) {
     appState.data.activeMade = Object.keys(exam.answerKeys)[0];
   }
   const curMade = appState.data.activeMade;
   const curKey = exam.answerKeys[curMade] || createDefaultKey(exam.config);
 
-  // 1. Render danh sách tab mã đề
+  // 1. Render tab mã đề
   let codeTabsHtml = "";
   Object.keys(exam.answerKeys).forEach(c => {
     const isActive = c === curMade;
     codeTabsHtml += `
-      <button onclick="selectActiveMade('${c}')" class="px-4 py-2 rounded-xl text-sm font-bold font-mono transition flex items-center space-x-1.5 ${isActive ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 hover:bg-slate-200'}">
-        <span>MÃ ${c}</span>
+      <button onclick="selectActiveMade('${c}')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono transition ${isActive ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">
+        MÃ ${c}
       </button>
     `;
   });
   codeSelector.innerHTML = codeTabsHtml;
 
-  // 2. Render nội dung bảng đáp án trực quan
+  // 2. Render nội dung bảng đáp án
   const p1Num = exam.config.p1_num || 12;
   const p2Num = exam.config.p2_num || 0;
   const p3Num = exam.config.p3_num || 0;
 
   let sheetHtml = `
-    <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+    <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-5">
       
-      <!-- Thanh công cụ Mã Đề -->
-      <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
         <div class="flex items-center space-x-2">
-          <span class="text-xs uppercase font-bold text-slate-400">Đang xem:</span>
-          <span class="px-3 py-1 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-mono font-extrabold text-base border border-sky-300 dark:border-sky-800">
-            MÃ ĐỀ ${curMade}
+          <span class="text-xs uppercase font-bold text-slate-400">Đang chọn:</span>
+          <span class="px-2.5 py-0.5 rounded bg-slate-100 text-slate-900 font-mono font-bold text-sm border border-slate-200">
+            MÃ ${curMade}
           </span>
-          <span class="text-xs text-slate-500 font-medium">(${p1Num} câu TN • ${p2Num} câu Đ/S • ${p3Num} câu TLN)</span>
+          <span class="text-xs text-slate-500">(${p1Num} câu P1 • ${p2Num} câu P2 • ${p3Num} câu P3)</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <button onclick="showQRCodeShareModal('${curMade}')" class="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 text-xs font-semibold border border-purple-200 dark:border-purple-800 flex items-center space-x-1">
-            <span>📱 Xuất mã QR chia sẻ</span>
+          <button onclick="showQRCodeShareModal('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
+            <span>📱 Mã QR chia sẻ</span>
           </button>
-          <button onclick="quickTextPastePrompt('${curMade}')" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 text-xs font-semibold flex items-center space-x-1">
-            <span>⚡ Dán chuỗi text nhanh</span>
+          <button onclick="quickTextPastePrompt('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
+            <span>⚡ Dán chuỗi text</span>
           </button>
-          <button onclick="deleteCurrentMade('${curMade}')" class="px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 text-xs font-semibold">
+          <button onclick="deleteCurrentMade('${curMade}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold">
             Xóa mã này
           </button>
         </div>
       </div>
   `;
 
-  // === PHẦN I: TRẮC NGHIỆM 4 LỰA CHỌN ===
+  // === PHẦN I ===
   if (p1Num > 0) {
     sheetHtml += `
       <div>
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wide flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-sky-500"></span>
-            <span>Phần I: Trắc Nghiệm 4 Lựa Chọn (${p1Num} câu - Mỗi câu chọn A, B, C hoặc D)</span>
+        <div class="flex items-center justify-between mb-2.5">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+            Phần I: Trắc Nghiệm Nhiều Lựa Chọn (${p1Num} câu)
           </h4>
-          <span class="text-xs text-slate-500">Bấm ô tròn để chọn đáp án</span>
+          <span class="text-[11px] text-slate-500">Chạm ô tròn để chọn/đổi</span>
         </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
     `;
 
     for (let q = 0; q < p1Num; q++) {
@@ -523,9 +542,9 @@ function renderVisualAnswerSheet() {
       const opts = ["A", "B", "C", "D"];
 
       sheetHtml += `
-        <div class="p-2.5 rounded-xl border border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between">
-          <span class="font-mono font-bold text-xs text-slate-600 dark:text-slate-400 w-8">C${qNum}</span>
-          <div class="flex items-center space-x-1.5">
+        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-between">
+          <span class="font-mono font-bold text-xs text-slate-500 w-7">C${qNum}</span>
+          <div class="flex items-center space-x-1">
             ${opts.map(opt => `
               <button onclick="setPart1Answer('${curMade}', ${q}, '${opt}')" class="bubble-choice ${curAns === opt ? 'selected' : ''}">
                 ${opt}
@@ -538,19 +557,17 @@ function renderVisualAnswerSheet() {
     sheetHtml += `</div></div>`;
   }
 
-  // === PHẦN II: TRẮC NGHIỆM ĐÚNG / SAI ===
+  // === PHẦN II ===
   if (p2Num > 0) {
     sheetHtml += `
-      <div class="border-t border-slate-100 dark:border-slate-700 pt-5">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wide flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-            <span>Phần II: Đúng / Sai (${p2Num} câu - Mỗi câu có 4 ý a, b, c, d)</span>
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between mb-2.5">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+            Phần II: Trắc Nghiệm Đúng / Sai (${p2Num} câu - Mỗi câu 4 ý a, b, c, d)
           </h4>
-          <span class="text-xs text-slate-500">Chọn Đ (Đúng - Xanh) hoặc S (Sai - Đỏ)</span>
+          <span class="text-[11px] text-slate-500">Đ (Đúng - Xanh lá) | S (Sai - Đỏ)</span>
         </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
     `;
 
     for (let q = 0; q < p2Num; q++) {
@@ -560,17 +577,17 @@ function renderVisualAnswerSheet() {
       const subLabels = ["a", "b", "c", "d"];
 
       sheetHtml += `
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40">
-          <div class="font-bold text-xs text-indigo-600 dark:text-indigo-400 mb-2 pb-1.5 border-b border-slate-200 dark:border-slate-700">
+        <div class="p-3 rounded-lg border border-slate-200 bg-slate-50">
+          <div class="font-bold text-xs text-slate-700 mb-2 pb-1 border-b border-slate-200">
             CÂU ${qNum}
           </div>
-          <div class="space-y-2">
+          <div class="space-y-1.5">
             ${subLabels.map((sLabel, sIdx) => {
               const val = subs[sIdx] || "";
               return `
                 <div class="flex items-center justify-between text-xs">
-                  <span class="font-mono font-semibold text-slate-700 dark:text-slate-300">${sLabel})</span>
-                  <div class="flex items-center space-x-1.5">
+                  <span class="font-mono font-medium text-slate-600">${sLabel})</span>
+                  <div class="flex items-center space-x-1">
                     <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'Đ')" class="bubble-tf ${val === 'Đ' ? 'selected-true' : ''}">
                       Đ
                     </button>
@@ -588,19 +605,17 @@ function renderVisualAnswerSheet() {
     sheetHtml += `</div></div>`;
   }
 
-  // === PHẦN III: TRẢ LỜI NGẮN ===
+  // === PHẦN III ===
   if (p3Num > 0) {
     sheetHtml += `
-      <div class="border-t border-slate-100 dark:border-slate-700 pt-5">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wide flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Phần III: Câu Trả Lời Ngắn (${p3Num} câu - Điền số nguyên hoặc số thập phân)</span>
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between mb-2.5">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+            Phần III: Trả Lời Ngắn (${p3Num} câu - Điền số)
           </h4>
-          <span class="text-xs text-slate-500">Nhập trực tiếp số hoặc click nút nhanh</span>
+          <span class="text-[11px] text-slate-500">Nhập trực tiếp số</span>
         </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
     `;
 
     for (let q = 0; q < p3Num; q++) {
@@ -608,9 +623,9 @@ function renderVisualAnswerSheet() {
       const curAns = curKey.part3[q] || "";
 
       sheetHtml += `
-        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40">
-          <label class="block font-bold text-xs text-emerald-600 dark:text-emerald-400 mb-1.5">CÂU ${qNum}</label>
-          <input type="text" value="${curAns}" onchange="setPart3Answer('${curMade}', ${q}, this.value)" placeholder="Ví dụ: 1.5" class="w-full py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono font-bold text-sm text-center text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50">
+          <label class="block font-bold text-[11px] text-slate-600 mb-1">CÂU ${qNum}</label>
+          <input type="text" value="${curAns}" onchange="setPart3Answer('${curMade}', ${q}, this.value)" placeholder="0.0" class="w-full py-1 px-2 rounded border border-slate-300 bg-white font-mono font-bold text-xs text-center text-slate-900 focus:outline-none focus:border-blue-600">
         </div>
       `;
     }
@@ -640,7 +655,6 @@ function createDefaultKey(config) {
 function setPart1Answer(made, qIdx, opt) {
   const exam = appState.getCurrentExam();
   if (!exam.answerKeys[made]) return;
-  // Bấm lại phương án đang chọn thì bỏ chọn
   if (exam.answerKeys[made].part1[qIdx] === opt) {
     exam.answerKeys[made].part1[qIdx] = "";
   } else {
@@ -673,7 +687,7 @@ function setPart3Answer(made, qIdx, val) {
 }
 
 function addNewMadePrompt() {
-  const code = prompt("Nhập Mã Đề mới (ví dụ 103, 104, 201...):");
+  const code = prompt("Nhập Mã Đề mới (ví dụ: 103, 104, 201...):");
   if (!code) return;
   const cleanCode = code.trim();
   const exam = appState.getCurrentExam();
@@ -705,7 +719,7 @@ function deleteCurrentMade(made) {
 function quickTextPastePrompt(made) {
   const exam = appState.getCurrentExam();
   const curKey = exam.answerKeys[made];
-  const p1Text = prompt("Nhập chuỗi đáp án Phần I (các ký tự A, B, C, D cách nhau hoặc viết liền, ví dụ ABCDABCDABCD):", curKey.part1.join(""));
+  const p1Text = prompt("Nhập chuỗi đáp án Phần I (các chữ cái A, B, C, D liền nhau, ví dụ ABCDABCDABCD):", curKey.part1.join(""));
   if (p1Text !== null) {
     const clean = p1Text.replace(/[^A-Za-z]/g, "").toUpperCase();
     for (let i = 0; i < exam.config.p1_num && i < clean.length; i++) {
@@ -717,7 +731,7 @@ function quickTextPastePrompt(made) {
 }
 
 // =========================================================================
-// === NẠP MÃ ĐỀ & ĐÁP ÁN BẰNG FILE EXCEL (.XLSX) ===
+// === NẠP ĐÁP ÁN BẰNG FILE EXCEL & MÃ QR ===
 // =========================================================================
 
 function triggerExcelKeyUpload() {
@@ -746,10 +760,9 @@ function handleExcelKeyUpload(event) {
       const exam = appState.getCurrentExam();
       let importedCount = 0;
 
-      // Tìm vị trí cột Mã Đề
       const headerRow = rows[0].map(h => String(h || "").trim().toLowerCase());
       let madeColIdx = headerRow.findIndex(h => h.includes("mã") || h.includes("made") || h.includes("code") || h.includes("đề"));
-      if (madeColIdx === -1) madeColIdx = 0; // Mặc định cột A
+      if (madeColIdx === -1) madeColIdx = 0;
 
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
@@ -758,22 +771,17 @@ function handleExcelKeyUpload(event) {
         const codeVal = String(row[madeColIdx] || "").trim();
         if (!codeVal) continue;
 
-        // Khởi tạo key
         const newKey = createDefaultKey(exam.config);
-
-        // Đọc Phần 1: các cột tiếp theo
         let cIdx = 1;
+
         for (let i = 0; i < exam.config.p1_num; i++) {
           if (cIdx < row.length && row[cIdx] !== undefined) {
             const v = String(row[cIdx]).trim().toUpperCase();
-            if (["A", "B", "C", "D"].includes(v)) {
-              newKey.part1[i] = v;
-            }
+            if (["A", "B", "C", "D"].includes(v)) newKey.part1[i] = v;
           }
           cIdx++;
         }
 
-        // Đọc Phần 2
         for (let q = 1; q <= exam.config.p2_num; q++) {
           const qKey = String(q);
           const subs = [];
@@ -789,7 +797,6 @@ function handleExcelKeyUpload(event) {
           newKey.part2[qKey] = subs;
         }
 
-        // Đọc Phần 3
         for (let i = 0; i < exam.config.p3_num; i++) {
           if (cIdx < row.length && row[cIdx] !== undefined) {
             newKey.part3[i] = String(row[cIdx]).trim();
@@ -808,32 +815,27 @@ function handleExcelKeyUpload(event) {
       alert(`Đã nạp thành công ${importedCount} mã đề từ File Excel!`);
     } catch (err) {
       console.error("Excel parse error:", err);
-      alert("Lỗi khi đọc file Excel! Hãy kiểm tra định dạng file mẫu.");
+      alert("Lỗi khi đọc file Excel! Vui lòng tải file mẫu để kiểm tra.");
     }
   };
   reader.readAsArrayBuffer(file);
   event.target.value = "";
 }
 
-// Tải file Excel mẫu chuẩn Bộ GD&ĐT 2025
 function downloadExcelKeyTemplate() {
   const exam = appState.getCurrentExam();
   const headers = ["Mã Đề"];
 
-  // Header P1
   for (let i = 1; i <= exam.config.p1_num; i++) headers.push(`P1_C${i}`);
-  // Header P2
   for (let i = 1; i <= exam.config.p2_num; i++) {
     headers.push(`P2_C${i}_a`, `P2_C${i}_b`, `P2_C${i}_c`, `P2_C${i}_d`);
   }
-  // Header P3
   for (let i = 1; i <= exam.config.p3_num; i++) headers.push(`P3_C${i}`);
 
   const sampleRows = [
     headers,
     ["101", "A", "B", "C", "D", "A", "B", "C", "D", "A", "B", "C", "D", "Đ", "S", "Đ", "S", "Đ", "Đ", "S", "S", "S", "Đ", "Đ", "S", "Đ", "S", "S", "Đ", "1.5", "-2", "0.75", "10", "-3.5", "4"],
-    ["102", "B", "C", "D", "A", "B", "C", "D", "A", "B", "C", "D", "A", "S", "Đ", "S", "Đ", "S", "S", "Đ", "Đ", "Đ", "S", "S", "Đ", "S", "Đ", "Đ", "S", "2.5", "-1", "1.25", "15", "-4.5", "6"],
-    ["103", "C", "D", "A", "B", "C", "D", "A", "B", "C", "D", "A", "B", "Đ", "Đ", "S", "S", "Đ", "S", "Đ", "S", "Đ", "S", "S", "Đ", "S", "Đ", "S", "Đ", "3.0", "4.2", "-5", "12", "0.5", "-8"]
+    ["102", "B", "C", "D", "A", "B", "C", "D", "A", "B", "C", "D", "A", "S", "Đ", "S", "Đ", "S", "S", "Đ", "Đ", "Đ", "S", "S", "Đ", "S", "Đ", "Đ", "S", "2.5", "-1", "1.25", "15", "-4.5", "6"]
   ];
 
   const wb = XLSX.utils.book_new();
@@ -841,10 +843,6 @@ function downloadExcelKeyTemplate() {
   XLSX.utils.book_append_sheet(wb, ws, "Mau_Dap_An");
   XLSX.writeFile(wb, "Mau_Dap_An_Chuan_BGD_2025.xlsx");
 }
-
-// =========================================================================
-// === NẠP & XUẤT ĐÁP ÁN BẰNG MÃ QR (QR CODE) ===
-// =========================================================================
 
 let qrScannerStream = null;
 let qrScanInterval = null;
@@ -873,7 +871,6 @@ async function startQRCamera() {
     video.srcObject = qrScannerStream;
     await video.play();
 
-    // Vòng lặp nhận diện QR bằng jsQR
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
@@ -895,7 +892,8 @@ async function startQRCamera() {
     }, 250);
   } catch (err) {
     console.error("QR Camera error:", err);
-    document.getElementById("qrCameraStatus").innerHTML = `<span class="text-rose-500">Camera QR không khả dụng. Hãy dùng nút 'Tải ảnh QR từ máy'!</span>`;
+    const statusEl = document.getElementById("qrCameraStatus");
+    if (statusEl) statusEl.innerHTML = `<span class="text-rose-600">Camera QR không khả dụng. Hãy dùng nút 'Tải ảnh QR từ máy'!</span>`;
   }
 }
 
@@ -946,20 +944,14 @@ function handleQRDataImport(qrStr) {
     let made = "";
     let keyObj = null;
 
-    // 1. Thử parse dạng JSON
     try {
       const parsed = JSON.parse(qrStr);
       if (parsed.made) {
         made = String(parsed.made);
-        keyObj = {
-          part1: parsed.p1 || [],
-          part2: parsed.p2 || {},
-          part3: parsed.p3 || []
-        };
+        keyObj = { part1: parsed.p1 || [], part2: parsed.p2 || {}, part3: parsed.p3 || [] };
       }
     } catch (e) {}
 
-    // 2. Thử parse dạng chuỗi nén: QM2025|101|ABCD...|DSDS,DDSS...|1.5,-2...
     if (!keyObj && qrStr.startsWith("QM2025|")) {
       const parts = qrStr.split("|");
       made = parts[1] || "101";
@@ -990,7 +982,6 @@ function handleQRDataImport(qrStr) {
   }
 }
 
-// Xuất mã QR để chia sẻ
 function showQRCodeShareModal(made) {
   const modal = document.getElementById("qrShareModal");
   const qrcodeContainer = document.getElementById("qrcodeDisplay");
@@ -1000,7 +991,6 @@ function showQRCodeShareModal(made) {
   const key = exam.answerKeys[made];
   if (!key) return;
 
-  // Tạo chuỗi nén gọn nhẹ để QR quét nhanh
   const p1Str = key.part1.join("");
   const p2Str = Object.values(key.part2).map(s => s.join("")).join(";");
   const p3Str = key.part3.join(",");
@@ -1010,8 +1000,8 @@ function showQRCodeShareModal(made) {
   if (typeof QRCode !== "undefined") {
     new QRCode(qrcodeContainer, {
       text: qrData,
-      width: 220,
-      height: 220,
+      width: 200,
+      height: 200,
       colorDark: "#0f172a",
       colorLight: "#ffffff",
       correctLevel: QRCode.CorrectLevel.M
@@ -1029,14 +1019,13 @@ function closeQRShareModal() {
 }
 
 // =========================================================================
-// === MODAL TẠO & CHỌN LOẠI PHIẾU CHẤM BÀI THI ===
+// === MODAL TẠO & CHỌN LOẠI PHIẾU CHẤM ===
 // =========================================================================
 
 function showCreateExamModal() {
   const modal = document.getElementById("createExamModal");
   if (!modal) return;
 
-  // Render danh sách loại phiếu
   const select = document.getElementById("examSheetTypeSelect");
   if (select) {
     select.innerHTML = Object.entries(SHEET_TYPES).map(([k, v]) => `
@@ -1044,7 +1033,6 @@ function showCreateExamModal() {
     `).join("");
   }
 
-  // Render danh sách lớp
   const classSelect = document.getElementById("examClassSelect");
   if (classSelect) {
     classSelect.innerHTML = appState.data.classes.map(c => `
@@ -1097,7 +1085,7 @@ function saveNewExam() {
   updateExamSelect();
   renderVisualAnswerSheet();
   closeCreateExamModal();
-  alert(`Đã tạo bài thi "${name}" với loại phiếu [${sheetDef.name}] thành công!`);
+  alert(`Đã tạo bài thi "${name}" với loại phiếu [${sheetDef.name}]!`);
 }
 
 // =========================================================================
@@ -1130,16 +1118,9 @@ function exportResultsToExcel() {
     else if (r.total_score >= 3.5) rank = "Yếu";
 
     summaryRows.push([
-      idx + 1,
-      r.sbd,
-      r.studentName,
-      r.made,
-      r.part1_score,
-      r.part2_score,
-      r.part3_score,
-      r.total_score,
-      rank,
-      r.timestamp
+      idx + 1, r.sbd, r.studentName, r.made,
+      r.part1_score, r.part2_score, r.part3_score, r.total_score,
+      rank, r.timestamp
     ]);
   });
 
@@ -1185,25 +1166,62 @@ function exportResultsToExcel() {
 }
 
 // =========================================================================
-// === RENDER GIAO DIỆN & TABS ===
+// === RENDER THƯ VIỆN 12 MẪU PHIẾU CHUẨN TỪ APP QM GỐC ===
+// =========================================================================
+
+function renderTemplateGallery() {
+  const container = document.getElementById("templateGalleryContainer");
+  if (!container) return;
+
+  let html = "";
+  Object.entries(SHEET_TYPES).forEach(([key, item]) => {
+    html += `
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="h-44 bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center p-2 mb-3 border border-slate-100">
+            <img src="samples/${item.file}" alt="${item.name}" class="h-full object-contain mx-auto shadow-sm">
+          </div>
+          <h4 class="font-bold text-sm text-slate-900 leading-snug">${item.name}</h4>
+          <p class="text-xs text-slate-500 mt-1 leading-relaxed">${item.desc}</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <span class="text-[11px] font-mono font-medium text-slate-400">${item.file.endsWith('.jpg') ? 'JPG' : 'PNG'}</span>
+          <a href="samples/${item.file}" download="${item.file}" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center space-x-1 transition">
+            <span>Tải phiếu in</span>
+          </a>
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+// =========================================================================
+// === RENDER GIAO DIỆN & TABS (HỖ TRỢ MOBILE DEDICATED MENU) ===
 // =========================================================================
 
 function switchTab(tabName) {
   appState.data.currentTab = tabName;
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+
+  // Desktop tab header
   document.querySelectorAll(".tab-btn").forEach(el => {
-    el.classList.remove("text-sky-600", "border-sky-600", "dark:text-sky-400", "dark:border-sky-400");
-    el.classList.add("text-slate-500", "border-transparent");
+    el.classList.remove("text-blue-700", "border-blue-700", "font-bold");
+    el.classList.add("text-slate-500", "border-transparent", "font-medium");
   });
+  const targetBtn = document.getElementById(`tabBtn_${tabName}`);
+  if (targetBtn) {
+    targetBtn.classList.remove("text-slate-500", "border-transparent", "font-medium");
+    targetBtn.classList.add("text-blue-700", "border-blue-700", "font-bold");
+  }
+
+  // Mobile Bottom Navigation Bar
+  document.querySelectorAll(".mobile-nav-item").forEach(el => el.classList.remove("active"));
+  const mobileBtn = document.getElementById(`mobileNavBtn_${tabName}`);
+  if (mobileBtn) mobileBtn.classList.add("active");
 
   const targetContent = document.getElementById(`tabContent_${tabName}`);
-  const targetBtn = document.getElementById(`tabBtn_${tabName}`);
-
   if (targetContent) targetContent.classList.remove("hidden");
-  if (targetBtn) {
-    targetBtn.classList.remove("text-slate-500", "border-transparent");
-    targetBtn.classList.add("text-sky-600", "border-sky-600", "dark:text-sky-400", "dark:border-sky-400");
-  }
 
   if (tabName === "scan") {
     initCamera();
@@ -1216,6 +1234,8 @@ function switchTab(tabName) {
     renderVisualAnswerSheet();
   } else if (tabName === "results") {
     renderResultsTable();
+  } else if (tabName === "templates") {
+    renderTemplateGallery();
   }
 }
 
@@ -1227,7 +1247,7 @@ function renderResultsTable() {
   if (!tbody) return;
 
   if (results.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-slate-400">Chưa có bài thi nào được chấm trong bài thi này. Hãy chuyển sang tab "Chấm Bài" để bắt đầu!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="py-10 text-center text-slate-400">Chưa có bài thi nào được chấm trong bài thi này. Hãy chuyển sang mục "Chấm Bài" để bắt đầu!</td></tr>`;
     if (statsContainer) statsContainer.innerHTML = "";
     return;
   }
@@ -1241,22 +1261,22 @@ function renderResultsTable() {
 
   if (statsContainer) {
     statsContainer.innerHTML = `
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <p class="text-xs text-slate-500">Tổng số bài đã chấm</p>
-          <p class="text-2xl font-bold text-slate-800 dark:text-white mt-1">${results.length} bài</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500">Số bài đã chấm</p>
+          <p class="text-xl font-bold text-slate-900 mt-0.5">${results.length} bài</p>
         </div>
-        <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500">Điểm trung bình</p>
-          <p class="text-2xl font-bold text-sky-600 dark:text-sky-400 mt-1">${avg} đ</p>
+          <p class="text-xl font-bold text-blue-700 mt-0.5">${avg} đ</p>
         </div>
-        <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500">Điểm cao nhất</p>
-          <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">${max} đ</p>
+          <p class="text-xl font-bold text-slate-900 mt-0.5">${max} đ</p>
         </div>
-        <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500">Tỷ lệ Đạt (≥ 5.0đ)</p>
-          <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">${passRate}%</p>
+          <p class="text-xl font-bold text-slate-900 mt-0.5">${passRate}%</p>
         </div>
       </div>
     `;
@@ -1264,22 +1284,20 @@ function renderResultsTable() {
 
   let html = "";
   results.forEach((r, idx) => {
-    const badgeColor = r.total_score >= 8.0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : (r.total_score >= 5.0 ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300');
-
     html += `
-      <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-        <td class="py-3 px-3 text-slate-500">${idx + 1}</td>
-        <td class="py-3 px-3 font-mono font-semibold text-slate-800 dark:text-slate-200">${r.sbd}</td>
-        <td class="py-3 px-3 font-medium text-slate-900 dark:text-white">${r.studentName}</td>
-        <td class="py-3 px-3 font-mono text-slate-600 dark:text-slate-400">${r.made}</td>
-        <td class="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">${r.part1_score.toFixed(2)}</td>
-        <td class="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">${r.part2_score.toFixed(2)}</td>
-        <td class="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">${r.part3_score.toFixed(2)}</td>
-        <td class="py-3 px-3 text-right font-mono font-bold text-lg"><span class="px-2.5 py-0.5 rounded-full ${badgeColor}">${r.total_score.toFixed(2)}</span></td>
-        <td class="py-3 px-3 text-center text-xs text-slate-500">${r.timestamp}</td>
-        <td class="py-3 px-3 text-right space-x-2">
-          <button onclick="previewGradedImage('${r.id}')" class="px-2.5 py-1 text-xs bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400 rounded hover:bg-sky-100 font-medium">Xem ảnh</button>
-          <button onclick="deleteSingleResult('${r.id}')" class="px-2.5 py-1 text-xs bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 rounded hover:bg-rose-100 font-medium">Xóa</button>
+      <tr class="border-b border-slate-100 hover:bg-slate-50">
+        <td class="py-2.5 px-3 text-slate-400">${idx + 1}</td>
+        <td class="py-2.5 px-3 font-mono font-bold text-slate-900">${r.sbd}</td>
+        <td class="py-2.5 px-3 font-medium text-slate-800">${r.studentName}</td>
+        <td class="py-2.5 px-3 font-mono text-slate-600">${r.made}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-slate-600">${r.part1_score.toFixed(2)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-slate-600">${r.part2_score.toFixed(2)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-slate-600">${r.part3_score.toFixed(2)}</td>
+        <td class="py-2.5 px-3 text-right font-mono font-bold text-sm text-blue-700">${r.total_score.toFixed(2)}</td>
+        <td class="py-2.5 px-3 text-center text-xs text-slate-400">${r.timestamp}</td>
+        <td class="py-2.5 px-3 text-right space-x-1.5">
+          <button onclick="previewGradedImage('${r.id}')" class="px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded hover:bg-slate-200 font-medium">Xem</button>
+          <button onclick="deleteSingleResult('${r.id}')" class="px-2 py-1 text-xs bg-rose-50 text-rose-600 rounded hover:bg-rose-100 font-medium">Xóa</button>
         </td>
       </tr>
     `;
@@ -1311,7 +1329,7 @@ function updateExamSelect() {
   if (!select) return;
   select.innerHTML = appState.data.exams.map(e => `
     <option value="${e.id}" ${e.id === appState.data.currentExamId ? 'selected' : ''}>
-      ${e.name} (${SHEET_TYPES[e.sheet_type]?.name?.split("-")[0]?.trim() || "2025"})
+      ${e.name}
     </option>
   `).join("");
 }
@@ -1327,7 +1345,94 @@ function onExamChange(examId) {
   renderResultsTable();
 }
 
+function renderStudentsList() {
+  const cls = appState.getCurrentClass();
+  const tbody = document.getElementById("studentsTableBody");
+  if (!tbody || !cls) return;
+
+  let html = "";
+  cls.students.forEach((s, idx) => {
+    html += `
+      <tr class="border-b border-slate-100">
+        <td class="py-2 px-3 text-slate-400">${idx + 1}</td>
+        <td class="py-2 px-3 font-mono font-bold text-slate-900">${s.sbd}</td>
+        <td class="py-2 px-3 text-slate-800 font-medium">${s.name}</td>
+        <td class="py-2 px-3 text-right">
+          <button onclick="removeStudent('${s.sbd}')" class="text-xs text-rose-600 hover:underline">Xóa</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+function removeStudent(sbd) {
+  const cls = appState.getCurrentClass();
+  cls.students = cls.students.filter(s => s.sbd !== sbd);
+  appState.save();
+  renderStudentsList();
+}
+
+function showImportStudentsModal() {
+  const text = prompt("Dán danh sách học sinh (Mỗi dòng một học sinh: SBD [dấu cách] Tên):\nVí dụ:\n000101 Nguyễn Văn A\n000102 Trần Thị B");
+  if (!text) return;
+
+  const lines = text.trim().split("\n");
+  const cls = appState.getCurrentClass();
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const sbd = parts[0].padStart(6, '0');
+      const name = parts.slice(1).join(" ");
+      if (!cls.students.some(s => s.sbd === sbd)) {
+        cls.students.push({ sbd, name });
+      }
+    }
+  });
+  appState.save();
+  renderStudentsList();
+  alert("Đã cập nhật danh sách học sinh!");
+}
+
+// BIND TOÀN BỘ HÀM VÀO WINDOW ĐỂ TRÁNH LỖI SCOPE KHI GỌI TỪ HTML ONCLICK
+window.switchTab = switchTab;
+window.showCreateExamModal = showCreateExamModal;
+window.closeCreateExamModal = closeCreateExamModal;
+window.saveNewExam = saveNewExam;
+window.triggerExcelKeyUpload = triggerExcelKeyUpload;
+window.handleExcelKeyUpload = handleExcelKeyUpload;
+window.downloadExcelKeyTemplate = downloadExcelKeyTemplate;
+window.openQRScannerModal = openQRScannerModal;
+window.closeQRScannerModal = closeQRScannerModal;
+window.handleQRImageUpload = handleQRImageUpload;
+window.showQRCodeShareModal = showQRCodeShareModal;
+window.closeQRShareModal = closeQRShareModal;
+window.showResultModal = showResultModal;
+window.closeResultModal = closeResultModal;
+window.exportResultsToExcel = exportResultsToExcel;
+window.captureAndGrade = captureAndGrade;
+window.toggleAutoScan = toggleAutoScan;
+window.switchCamera = switchCamera;
+window.handleFileUpload = handleFileUpload;
+window.gradeSampleSheet = gradeSampleSheet;
+window.renderVisualAnswerSheet = renderVisualAnswerSheet;
+window.setPart1Answer = setPart1Answer;
+window.setPart2Answer = setPart2Answer;
+window.setPart3Answer = setPart3Answer;
+window.addNewMadePrompt = addNewMadePrompt;
+window.deleteCurrentMade = deleteCurrentMade;
+window.quickTextPastePrompt = quickTextPastePrompt;
+window.selectActiveMade = selectActiveMade;
+window.onExamChange = onExamChange;
+window.renderStudentsList = renderStudentsList;
+window.removeStudent = removeStudent;
+window.showImportStudentsModal = showImportStudentsModal;
+window.renderTemplateGallery = renderTemplateGallery;
+
+// Khởi tạo ứng dụng
 window.addEventListener("DOMContentLoaded", () => {
   updateExamSelect();
+  renderStudentsList();
+  renderTemplateGallery();
   switchTab(appState.data.currentTab || "scan");
 });
