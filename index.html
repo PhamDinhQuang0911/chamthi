@@ -28,7 +28,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Compiled Tailwind CSS v4 Production Build -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=2026102501">
+  <link rel="stylesheet" href="css/tailwind.min.css?v=2026102502">
   
   <!-- SheetJS, jsQR, QRCode.js, Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -37,29 +37,30 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   
   <!-- Core Logic Scripts -->
-  <script src="js/omr-engine.js?v=2026102501"></script>
-  <script src="js/app.js?v=2026102501"></script>
+  <script src="js/omr-engine.js?v=2026102502"></script>
+  <script src="js/app.js?v=2026102502"></script>
   
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/style.css?v=2026102501">
+  <link rel="stylesheet" href="css/style.css?v=2026102502">
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-full flex flex-col font-sans">
 
-  <!-- Inputs ẩn cho Upload Excel, QR, Backup JSON -->
+  <!-- Inputs ẩn cho Upload Excel, QR, Backup JSON, Upload danh sách học sinh -->
   <input type="file" id="excelKeyFileInput" accept=".xlsx, .xls" onchange="window.handleExcelKeyUpload(event)" class="hidden">
+  <input type="file" id="studentExcelFileInput" accept=".xlsx, .xls" onchange="window.handleStudentExcelUpload(event)" class="hidden">
   <input type="file" id="qrImageFileInput" accept="image/*" onchange="window.handleQRImageUpload(event)" class="hidden">
   <input type="file" id="backupJsonFileInput" accept=".json" onchange="window.handleImportBackupJson(event)" class="hidden">
 
-  <!-- TOP HEADER (TỐI GIẢN & ĐỒNG NHẤT) -->
-  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm transition-colors">
-    <div class="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
+  <!-- TOP HEADER (TỐI GIẢN & CHỐNG TRÀN MOBILE - ZERO HORIZONTAL OVERFLOW) -->
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm transition-colors overflow-x-clip">
+    <div class="max-w-6xl mx-auto px-2.5 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-2">
       
       <!-- Brand Logo & Domain -->
       <div onclick="window.switchTab('hub')" class="flex items-center space-x-1.5 shrink-0 cursor-pointer">
-        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-900 dark:bg-blue-600 flex items-center justify-center text-white text-sm sm:text-base font-bold shadow-sm">
+        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-900 dark:bg-blue-600 flex items-center justify-center text-white text-xs sm:text-base font-bold shadow-sm">
           Q
         </div>
-        <div class="leading-tight">
+        <div class="leading-tight shrink-0">
           <div class="flex items-center space-x-1">
             <span class="font-bold text-slate-900 dark:text-white tracking-tight text-xs sm:text-base">QMATH</span>
             <span class="px-1 py-0.2 rounded text-[9px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">2025</span>
@@ -69,9 +70,9 @@
       </div>
 
       <!-- Quick Exam Selector, Theme Toggle, Settings & New Exam Button -->
-      <div class="flex items-center space-x-1 sm:space-x-2">
+      <div class="flex items-center space-x-1 sm:space-x-2 shrink-0">
         <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-1.5 sm:px-2.5 py-1 sm:py-1.5 border border-slate-200 dark:border-slate-700">
-          <select id="headerExamSelect" onchange="window.onExamChange(this.value)" class="bg-transparent font-semibold text-slate-900 dark:text-slate-100 text-[11px] sm:text-xs focus:outline-none cursor-pointer max-w-[115px] sm:max-w-[230px] truncate">
+          <select id="headerExamSelect" onchange="window.onExamChange(this.value)" class="bg-transparent font-semibold text-slate-900 dark:text-slate-100 text-[11px] sm:text-xs focus:outline-none cursor-pointer max-w-[100px] sm:max-w-[220px] truncate">
             <!-- Populated via JS -->
           </select>
         </div>
@@ -81,13 +82,14 @@
           <span id="themeToggleIcon">🌙</span>
         </button>
 
-        <!-- Nút Cài đặt nhanh -->
-        <button onclick="window.switchTab('settings')" title="Cài đặt chung" class="btn-secondary w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs flex items-center justify-center shadow-sm shrink-0">
+        <!-- Nút Cài đặt nhanh: Ẩn trên mobile (sm:hidden) vì đã có ở menu đáy -->
+        <button onclick="window.switchTab('settings')" title="Cài đặt chung" class="hidden sm:flex btn-secondary w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs items-center justify-center shadow-sm shrink-0">
           <span>⚙️</span>
         </button>
 
-        <button onclick="window.showCreateExamModal()" title="Tạo bài kiểm tra mới & Cấu hình" class="btn-primary py-1 sm:py-1.5 px-2.5 sm:px-3 rounded-lg text-xs whitespace-nowrap transition flex items-center space-x-1 shadow-sm shrink-0">
-          <span>+ Bài chấm mới</span>
+        <button onclick="window.showCreateExamModal()" title="Tạo bài kiểm tra mới" class="btn-primary py-1 sm:py-1.5 px-2 sm:px-3 rounded-lg text-xs whitespace-nowrap transition flex items-center space-x-1 shadow-sm shrink-0">
+          <span class="sm:hidden">+ Bài thi</span>
+          <span class="hidden sm:inline">+ Bài chấm mới</span>
         </button>
       </div>
 
@@ -104,14 +106,14 @@
       <button id="tabBtn_scan" onclick="window.switchTab('scan')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
         <span>📷 Chấm bài</span>
       </button>
+      <button id="tabBtn_classes" onclick="window.switchTab('classes')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
+        <span>👨‍🏫 Lớp học</span>
+      </button>
       <button id="tabBtn_results" onclick="window.switchTab('results')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
         <span>🖼️ Bài đã chấm</span>
       </button>
       <button id="tabBtn_stats" onclick="window.switchTab('stats')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
-        <span>📊 Thống kê</span>
-      </button>
-      <button id="tabBtn_classes" onclick="window.switchTab('classes')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
-        <span>👨‍🏫 Chọn lớp học</span>
+        <span>📊 Thống kê & So sánh</span>
       </button>
       <button id="tabBtn_templates" onclick="window.switchTab('templates')" class="tab-btn py-2.5 flex items-center space-x-1.5 whitespace-nowrap">
         <span>📥 Mẫu phiếu in</span>
@@ -125,7 +127,7 @@
   <!-- MAIN CONTAINER -->
   <main class="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-8">
 
-    <!-- ================= TAB 0: TỔNG QUAN BÀI THI (EXAM HUB - CHUẨN HÌNH 2) ================= -->
+    <!-- ================= TAB 0: TỔNG QUAN BÀI THI (EXAM HUB) ================= -->
     <div id="tabContent_hub" class="tab-content space-y-4 max-w-2xl mx-auto">
       
       <!-- Thanh tiêu đề bài kiểm tra đang mở -->
@@ -147,7 +149,7 @@
         </div>
       </div>
 
-      <!-- 6 MỤC CHỨC NĂNG TRONG 1 BÀI THI (CHUẨN HÌNH 2 - QUIZDETAILACTIVITY) -->
+      <!-- 6 MỤC CHỨC NĂNG TRONG 1 BÀI THI -->
       <div class="space-y-2.5">
         
         <!-- 1. Đáp án -->
@@ -201,58 +203,58 @@
           </div>
         </div>
 
-        <!-- 4. Xuất kết quả -->
-        <div onclick="window.openExportModal()" class="hub-action-card">
-          <div class="flex items-center space-x-3.5">
-            <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-lg font-bold text-indigo-600 dark:text-indigo-400">
-              ⇅
-            </div>
-            <div>
-              <div class="font-bold text-sm text-slate-900 dark:text-white">Xuất kết quả</div>
-              <div class="text-[11px] text-slate-500 dark:text-slate-400">Xuất bảng điểm, lựa chọn chi tiết & ma trận đúng/sai (.xlsx)</div>
-            </div>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-slate-400 font-bold text-base">›</span>
-          </div>
-        </div>
-
-        <!-- 5. Thống kê -->
-        <div onclick="window.switchTab('stats')" class="hub-action-card">
-          <div class="flex items-center space-x-3.5">
-            <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 flex items-center justify-center text-lg">
-              📊
-            </div>
-            <div>
-              <div class="font-bold text-sm text-slate-900 dark:text-white">Thống kê</div>
-              <div class="text-[11px] text-slate-500 dark:text-slate-400">Phổ điểm, điểm TB/Max/Min & tỉ lệ đúng/sai từng câu</div>
-            </div>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-slate-400 font-bold text-base">›</span>
-          </div>
-        </div>
-
-        <!-- 6. Chọn lớp học -->
+        <!-- 4. Lớp học áp dụng -->
         <div onclick="window.switchTab('classes')" class="hub-action-card">
           <div class="flex items-center space-x-3.5">
             <div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center text-lg">
               👨‍🏫
             </div>
             <div>
-              <div class="font-bold text-sm text-slate-900 dark:text-white">Chọn lớp học</div>
-              <div class="text-[11px] text-slate-500 dark:text-slate-400">Gán lớp học và danh sách Số Báo Danh học sinh</div>
+              <div class="font-bold text-sm text-slate-900 dark:text-white">Lớp học & Danh sách học sinh</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">Quản lý lớp, nạp SBD học sinh thủ công hoặc Excel</div>
             </div>
           </div>
           <div class="flex items-center space-x-2">
-            <span id="hubClassNameBadge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 truncate max-w-[130px]">Lớp 12A1</span>
+            <span id="hubClassNameBadge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 truncate max-w-[130px]">Nhiều lớp</span>
+            <span class="text-slate-400 font-bold text-base">›</span>
+          </div>
+        </div>
+
+        <!-- 5. Thống kê & Phân tích -->
+        <div onclick="window.switchTab('stats')" class="hub-action-card">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 flex items-center justify-center text-lg">
+              📊
+            </div>
+            <div>
+              <div class="font-bold text-sm text-slate-900 dark:text-white">Thống kê & Đối chiếu các lớp</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">So sánh chỉ số giữa các lớp, phổ điểm & phân tích từng câu</div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-slate-400 font-bold text-base">›</span>
+          </div>
+        </div>
+
+        <!-- 6. Xuất kết quả Excel -->
+        <div onclick="window.openExportModal()" class="hub-action-card">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-lg font-bold text-indigo-600 dark:text-indigo-400">
+              ⇅
+            </div>
+            <div>
+              <div class="font-bold text-sm text-slate-900 dark:text-white">Xuất kết quả Excel đa lớp</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">Xuất bảng điểm từng lớp kèm Sheet tổng hợp so sánh</div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
             <span class="text-slate-400 font-bold text-base">›</span>
           </div>
         </div>
 
       </div>
 
-      <!-- THẺ TÓM TẮT CẤU HÌNH BÀI THI BÊN DƯỚI (CHUẨN HÌNH 2) -->
+      <!-- THẺ TÓM TẮT CẤU HÌNH BÀI THI -->
       <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-4">
         <div class="space-y-2 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200">
           <div class="flex items-center space-x-2.5">
@@ -280,17 +282,17 @@
 
     </div>
 
-    <!-- ================= TAB 1: CHẤM BÀI (CAMERA 4 Ô ĐỊNH VỊ GÓC XANH LÁ CHUẨN APP QM) ================= -->
+    <!-- ================= TAB 1: CHẤM BÀI (CAMERA 4 Ô ĐỊNH VỊ GÓC XANH LÁ) ================= -->
     <div id="tabContent_scan" class="tab-content hidden space-y-3">
       <div class="flex flex-col items-center">
         
         <!-- Thanh điều hướng nhanh trên đầu khung quét -->
         <div class="w-full max-w-[480px] flex items-center justify-between bg-white dark:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm text-xs">
-          <button onclick="window.switchTab('hub')" class="font-semibold text-slate-600 dark:text-slate-300 hover:underline flex items-center space-x-1">
-            <span>← Bài thi:</span>
-            <strong id="scanHeaderExamName" class="text-slate-900 dark:text-white truncate max-w-[150px]">Ktra1</strong>
+          <button onclick="window.switchTab('hub')" class="font-semibold text-slate-600 dark:text-slate-300 hover:underline flex items-center space-x-1 truncate max-w-[200px]">
+            <span>←</span>
+            <strong id="scanHeaderExamName" class="text-slate-900 dark:text-white truncate">Ktra1</strong>
           </button>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 shrink-0">
             <button onclick="window.switchTab('results')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200">
               🖼️ Đã chấm: <span id="scanHeaderCount">0</span>
             </button>
@@ -300,26 +302,26 @@
           </div>
         </div>
 
-        <!-- Thông báo nhanh kết quả vừa quét (khi tắt popup hoặc quét liên tục) -->
+        <!-- Thông báo nhanh kết quả vừa quét -->
         <div id="scanQuickToast" class="hidden w-full max-w-[480px] bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-md flex items-center justify-between text-xs font-bold">
           <span id="scanQuickToastText">Đã lưu SBD 123456 - Điểm: 9.50</span>
           <button onclick="window.openLastGradedReview()" class="underline ml-2">Xem phiếu ›</button>
         </div>
 
-        <!-- Khung quét Viewport với 4 Ô VUÔNG ĐỊNH VỊ GÓC MÀU XANH LÁ (`CornerSquaresOverlayUnt2025`) -->
+        <!-- Khung quét Viewport với 4 Ô VUÔNG ĐỊNH VỊ GÓC MÀU XANH LÁ -->
         <div id="scannerViewport" class="scanner-viewport">
           <video id="scannerVideo" class="scanner-video" playsinline muted autoplay></video>
           <div id="scannerFlashOverlay" class="scanner-flash"></div>
           
           <div class="scanner-overlay">
             <div class="scanner-reticle">
-              <!-- 4 Ô VUÔNG ĐỊNH VỊ GÓC PHIẾU MÀU XANH LÁ CHUẨN APP QM (#00FF00) -->
+              <!-- 4 Ô VUÔNG ĐỊNH VỊ GÓC PHIẾU MÀU XANH LÁ CHUẨN APP QM -->
               <div id="cornerBoxTL" class="qm-corner-square qm-corner-tl"></div>
               <div id="cornerBoxTR" class="qm-corner-square qm-corner-tr"></div>
               <div id="cornerBoxBR" class="qm-corner-square qm-corner-br"></div>
               <div id="cornerBoxBL" class="qm-corner-square qm-corner-bl"></div>
 
-              <!-- Các đường dẫn hướng vùng nội bộ (SBD/Mã đề, P1, P2, P3) -->
+              <!-- Các đường dẫn hướng vùng nội bộ -->
               <div class="qm-internal-guide" style="top: 32%;"></div>
               <div class="qm-internal-guide" style="top: 55%;"></div>
               <div class="qm-internal-guide" style="top: 70%;"></div>
@@ -331,7 +333,6 @@
                 <span id="cornerLockBadge" class="inline-flex items-center px-3 py-1 bg-black/75 text-emerald-400 text-[11px] rounded-full font-bold border border-emerald-500/40 shadow">
                   🎯 Định vị góc phiếu: 0/4 ô vuông xanh
                 </span>
-                <!-- Thanh tiến trình khóa ảnh tự động chuẩn `progressBar` trong ScanNowActivity1239 -->
                 <div id="scanLockProgressWrap" class="hidden w-40 h-1.5 bg-black/60 rounded-full overflow-hidden border border-white/20">
                   <div id="scanLockProgressBar" class="h-full bg-emerald-400 transition-all duration-100" style="width: 0%;"></div>
                 </div>
@@ -377,12 +378,12 @@
         <div class="mt-2.5 flex flex-wrap items-center justify-center gap-2 text-xs">
           <label class="btn-secondary cursor-pointer py-2 px-3.5 rounded-lg font-semibold shadow-sm flex items-center space-x-1.5">
             <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span>Tải ảnh phiếu từ máy (Chọn nhiều ảnh)</span>
+            <span>Tải ảnh phiếu từ máy</span>
             <input type="file" multiple accept="image/*" onchange="window.handleFileUpload(event)" class="hidden">
           </label>
 
           <button onclick="window.gradeSampleSheet()" class="btn-secondary py-2 px-3.5 rounded-lg font-semibold shadow-sm flex items-center space-x-1">
-            <span>🎯 Chấm thử phiếu mẫu 101</span>
+            <span>🎯 Chấm thử mẫu 101</span>
           </button>
         </div>
 
@@ -396,42 +397,34 @@
       <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
           <button onclick="window.switchTab('hub')" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline mb-0.5 inline-block">
-            ← Quay lại Tổng quan bài thi
+            ← Quay lại Bài thi
           </button>
-          <h2 class="text-lg font-bold text-slate-900 dark:text-white" id="examDetailTitle">Khảo sát Chất lượng Toán 12</h2>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white" id="examDetailTitle">Khảo sát Toán 12</h2>
           <div class="flex flex-wrap items-center gap-2 mt-1 text-xs">
             <span id="examSheetBadge" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold border border-slate-200 dark:border-slate-700">
-              A4 - Chuẩn Bộ GD&ĐT 2025 (1239)
+              A4 - Chuẩn BGD 2025
             </span>
             <button onclick="window.showEditCurrentExamModal()" class="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
-              ✎ Sửa cấu trúc đề / thang điểm
+              ✎ Sửa cấu trúc đề
             </button>
           </div>
         </div>
 
         <!-- Toolbar Buttons: Excel, QR Code, Thêm mã đề -->
         <div class="flex flex-wrap items-center gap-1.5">
-          <button onclick="window.triggerExcelKeyUpload()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm">
+          <button onclick="window.triggerExcelKeyUpload()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm font-semibold">
             <span>📥 Nạp Excel</span>
           </button>
-
           <button onclick="window.downloadExcelKeyTemplate()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm">
-            <span>⬇️ File mẫu .xlsx</span>
+            <span>⬇️ File mẫu (.xlsx)</span>
           </button>
-
           <button onclick="window.openQRScannerModal()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm">
             <span>📷 Quét QR</span>
           </button>
-
-          <button onclick="window.addNewMadePrompt()" class="btn-primary py-1.5 px-3 rounded-lg text-xs shadow-sm">
+          <button onclick="window.addNewMadePrompt()" class="btn-primary py-1.5 px-3 rounded-lg text-xs font-bold shadow-sm">
             + Thêm mã đề
           </button>
         </div>
-      </div>
-
-      <!-- Selector Tabs cho các Mã Đề (101, 102...) -->
-      <div class="flex items-center space-x-2 overflow-x-auto pb-1" id="visualCodeSelector">
-        <!-- Rendered via JS -->
       </div>
 
       <!-- BẢNG ĐÁP ÁN TRỰC QUAN NHƯ PHIẾU CHẤM -->
@@ -441,39 +434,85 @@
 
     </div>
 
-    <!-- ================= TAB 3: CHỌN LỚP HỌC & DANH SÁCH HỌC SINH ================= -->
+    <!-- ================= TAB 3: QUẢN LÝ LỚP HỌC & HỌC SINH (YÊU CẦU 4 & 5) ================= -->
     <div id="tabContent_classes" class="tab-content hidden space-y-4">
       <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        
+        <!-- Header: Chọn lớp, thêm lớp, sửa, xóa -->
         <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div>
             <button onclick="window.switchTab('hub')" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline mb-0.5 inline-block">
-              ← Quay lại Tổng quan bài thi
+              ← Quay lại Bài thi
             </button>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">Chọn Lớp Học & Quản Lý Học Sinh</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Gán lớp cho bài thi hiện tại và đồng bộ Số Báo Danh (6 số) với Họ tên</p>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Quản Lý Lớp Học & Danh Sách Học Sinh</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Đồng bộ Số Báo Danh (SBD) với Họ tên học sinh để tự động gắn điểm khi chấm</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <select id="activeClassSelect" onchange="window.onSelectActiveClass(this.value)" class="py-1.5 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold">
+            <select id="activeClassSelect" onchange="window.onSelectActiveClass(this.value)" class="py-1.5 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
               <!-- Populated via JS -->
             </select>
-            <button onclick="window.createNewClassPrompt()" class="btn-secondary py-1.5 px-3 rounded-lg text-xs">
+            <span id="classStudentCountBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">0 học sinh</span>
+            <button onclick="window.showCreateClassModal()" class="btn-primary py-1.5 px-3 rounded-lg text-xs font-bold shadow-sm">
               + Tạo lớp mới
             </button>
-            <button onclick="window.showImportStudentsModal()" class="btn-primary py-1.5 px-3 rounded-lg text-xs shadow-sm">
-              📋 Dán danh sách HS
+            <button onclick="window.editCurrentClassName()" title="Đổi tên lớp này" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs font-semibold">
+              ✎ Đổi tên
+            </button>
+            <button onclick="window.deleteCurrentClass()" title="Xóa lớp này" class="btn-danger py-1.5 px-2.5 rounded-lg text-xs">
+              🗑️ Xóa lớp
             </button>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <!-- 2 KHỐI CÔNG CỤ: THÊM THỦ CÔNG & EXCEL -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          
+          <!-- Khối 1: Thêm học sinh thủ công -->
+          <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-2.5">
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">1. Thêm Học Sinh Thủ Công</h3>
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="text" id="manualStudentSbd" placeholder="Số báo danh (vd: 120101)" class="w-36 py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 font-mono text-xs focus:outline-none focus:border-blue-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <input type="text" id="manualStudentName" placeholder="Họ và tên học sinh" class="flex-1 min-w-[140px] py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <button onclick="window.addStudentManual()" class="btn-primary py-1.5 px-3 rounded-lg text-xs font-bold shadow-sm whitespace-nowrap">
+                + Thêm
+              </button>
+            </div>
+          </div>
+
+          <!-- Khối 2: Công cụ Nạp & Xuất Excel / Text -->
+          <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-2.5">
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">2. Nạp File Excel Hoặc Dán Text</h3>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button onclick="window.triggerStudentExcelUpload()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm font-semibold">
+                <span>📥 Nạp Excel (.xlsx)</span>
+              </button>
+              <button onclick="window.downloadStudentExcelTemplate()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm">
+                <span>⬇️ File mẫu (.xlsx)</span>
+              </button>
+              <button onclick="window.exportClassStudentsToExcel()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm">
+                <span>📤 Xuất Excel</span>
+              </button>
+              <button onclick="window.showImportStudentsModal()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs shadow-sm">
+                <span>📋 Dán text</span>
+              </button>
+              <button onclick="window.clearAllStudentsInClass()" class="text-rose-600 hover:text-rose-800 text-xs font-semibold px-2 py-1.5">
+                Xóa hết HS
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bảng danh sách học sinh -->
+        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-semibold">
               <tr>
                 <th class="py-2.5 px-3">STT</th>
-                <th class="py-2.5 px-3">Số Báo Danh</th>
+                <th class="py-2.5 px-3">Số Báo Danh (SBD)</th>
                 <th class="py-2.5 px-3">Họ và Tên Học Sinh</th>
-                <th class="py-2.5 px-3 text-right">Thao tác</th>
+                <th class="py-2.5 px-3 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody id="studentsTableBody">
@@ -481,38 +520,41 @@
             </tbody>
           </table>
         </div>
+
       </div>
     </div>
 
     <!-- ================= TAB 4: BÀI ĐÃ CHẤM (DANH SÁCH & GALLERY + CHỈNH SỬA THỦ CÔNG) ================= -->
     <div id="tabContent_results" class="tab-content hidden space-y-4">
-      <div id="resultsStats"></div>
-
+      
       <!-- Thanh tìm kiếm, lọc và chuyển chế độ xem -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div class="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
           <button onclick="window.switchTab('hub')" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs">
             ← Bài thi
           </button>
-          <input type="text" id="searchResultInput" oninput="window.renderResultsTable()" placeholder="🔍 Tìm theo SBD, tên học sinh, mã đề..." class="flex-1 min-w-[180px] py-1.5 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
-          <select id="filterResultSelect" onchange="window.renderResultsTable()" class="py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs">
-            <option value="all">Tất cả bài chấm</option>
-            <option value="modified">✎ Có chỉnh sửa thủ công</option>
-            <option value="warning">⚠ Có tô đúp / bỏ trống / thiếu mã</option>
+          
+          <!-- Dropdown lọc theo lớp -->
+          <select id="resultsClassFilterSelect" onchange="window.setResultsClassFilter(this.value)" class="py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <!-- Populated via JS -->
           </select>
+
+          <input type="text" id="searchResultInput" oninput="window.renderResultsTable()" placeholder="🔍 Tìm theo SBD, tên, mã đề..." class="flex-1 min-w-[140px] py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+          
+          <span id="resultsFilteredCount" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">0 bài</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-1.5">
           <button id="btnViewModeTable" onclick="window.setResultsViewMode('table')" class="btn-primary py-1.5 px-2.5 rounded-lg text-xs">
-            📋 Bảng dữ liệu
+            📋 Bảng
           </button>
           <button id="btnViewModeGallery" onclick="window.setResultsViewMode('gallery')" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs">
-            🖼️ Ảnh phiếu
+            🖼️ Ảnh
           </button>
-          <button onclick="window.openExportModal()" class="btn-secondary py-1.5 px-3 rounded-lg text-xs flex items-center space-x-1 shadow-sm">
-            <span>⇅ Xuất kết quả</span>
+          <button onclick="window.exportResultsToExcel()" class="btn-secondary py-1.5 px-2.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm font-semibold">
+            <span>⇅ Xuất Excel</span>
           </button>
-          <button onclick="window.clearAllResults()" class="btn-danger py-1.5 px-2.5 rounded-lg text-xs font-semibold">
+          <button onclick="window.clearAllResults()" class="btn-danger py-1.5 px-2 rounded-lg text-xs">
             Xóa hết
           </button>
         </div>
@@ -527,13 +569,12 @@
                 <th class="py-2.5 px-3">STT</th>
                 <th class="py-2.5 px-3">SBD</th>
                 <th class="py-2.5 px-3">Họ và Tên</th>
+                <th class="py-2.5 px-3">Lớp</th>
                 <th class="py-2.5 px-3">Mã Đề</th>
-                <th class="py-2.5 px-3 text-right">P.I</th>
-                <th class="py-2.5 px-3 text-right">P.II</th>
-                <th class="py-2.5 px-3 text-right">P.III</th>
+                <th class="py-2.5 px-3">P.I</th>
+                <th class="py-2.5 px-3">P.II</th>
+                <th class="py-2.5 px-3">P.III</th>
                 <th class="py-2.5 px-3 text-right">Tổng Điểm</th>
-                <th class="py-2.5 px-3 text-center">Trạng Thái</th>
-                <th class="py-2.5 px-3 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody id="resultsTableBody">
@@ -544,93 +585,102 @@
       </div>
 
       <!-- Chế độ 2: Lưới ảnh phiếu đã chấm (Gallery) -->
-      <div id="resultsGalleryWrap" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-        <!-- Rendered via JS -->
+      <div id="resultsGalleryWrap" class="hidden">
+        <div id="resultsGalleryGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+          <!-- Rendered via JS -->
+        </div>
       </div>
     </div>
 
-    <!-- ================= TAB 5: THỐNG KÊ & PHÂN TÍCH CÂU HỎI (REPORTACTIVITY) ================= -->
+    <!-- ================= TAB 5: THỐNG KÊ & PHÂN TÍCH LIÊN LỚP (YÊU CẦU 5) ================= -->
     <div id="tabContent_stats" class="tab-content hidden space-y-4">
-      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
           <button onclick="window.switchTab('hub')" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline mb-0.5 inline-block">
-            ← Quay lại Tổng quan bài thi
+            ← Quay lại Bài thi
           </button>
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">Thống Kê Phổ Điểm & Phân Tích Từng Câu Hỏi</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Đánh giá chất lượng đề thi và phát hiện các câu học sinh hay sai nhất</p>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Thống Kê Điểm & Đối Chiếu Giữa Các Lớp</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Phân tích phổ điểm, so sánh chất lượng các lớp và tỷ lệ làm đúng từng câu</p>
         </div>
-        <button onclick="window.openExportModal()" class="btn-primary py-1.5 px-3 rounded-lg text-xs">
-          ⇅ Xuất báo cáo Excel
-        </button>
+        
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Dropdown chọn phạm vi thống kê -->
+          <select id="statsClassFilterSelect" onchange="window.setStatsClassFilter(this.value)" class="py-1.5 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <option value="all">Toàn bộ học sinh (So sánh các lớp)</option>
+          </select>
+          <button onclick="window.exportResultsToExcel()" class="btn-primary py-1.5 px-3 rounded-lg text-xs shadow-sm font-semibold">
+            ⇅ Xuất báo cáo Excel
+          </button>
+        </div>
       </div>
 
-      <div id="statsReportContainer" class="space-y-4">
+      <div id="statsContentContainer" class="space-y-4">
         <!-- Rendered via JS -->
       </div>
     </div>
 
-    <!-- ================= TAB 6: TẢI MẪU PHIẾU A4 (12 MẪU GỐC TỪ APP QM) ================= -->
+    <!-- ================= TAB 6: TẢI MẪU PHIẾU A4 (12 MẪU CHUẨN APP QM) ================= -->
     <div id="tabContent_templates" class="tab-content hidden space-y-4">
       <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
         <h2 class="text-base font-bold text-slate-900 dark:text-white">Kho Mẫu Phiếu Chấm Trắc Nghiệm (12 Mẫu Chuẩn App QM)</h2>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Bao gồm toàn bộ các mẫu phiếu chuẩn hóa từ app gốc QM (Bộ GD&ĐT 2025, QMATH, TNMaker, Azota, Ôn tập A4 & A5). Bấm "Xem" hoặc "Tải phiếu in" để in khổ giấy chuẩn 100%.
+          Bao gồm 12 mẫu phiếu chuẩn hóa từ app gốc QM (Bộ GD&ĐT 2025, QMATH, TNMaker, Azota, Ôn tập A4 & A5). Bấm "Xem lớn" hoặc "Tải file" để in khổ giấy chuẩn 100%.
         </p>
       </div>
 
       <!-- Grid 12 mẫu phiếu -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5" id="templateGalleryContainer">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5" id="templateGalleryGrid">
         <!-- Rendered via JS -->
       </div>
     </div>
 
-    <!-- ================= TAB 7: CÀI ĐẶT CHUNG (REQUIREMENT 3) ================= -->
-    <div id="tabContent_settings" class="tab-content hidden space-y-4 max-w-3xl mx-auto">
+    <!-- ================= TAB 7: CÀI ĐẶT CHUNG (TỐI GIẢN & CLEAN) ================= -->
+    <div id="tabContent_settings" class="tab-content hidden space-y-4 max-w-2xl mx-auto">
       <div class="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">⚙️ Cài Đặt Chung Hệ Thống Chấm Thi</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tùy chỉnh tốc độ quét Camera, độ nhạy nhận diện vết chì, cảnh báo thông minh và quy tắc tính điểm</p>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">⚙️ Cài Đặt Chung</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tùy chỉnh tốc độ quét, độ nhạy nhận diện và quy tắc làm tròn</p>
           </div>
-          <button onclick="window.resetDefaultSettings()" class="btn-secondary py-1.5 px-3 rounded-lg text-xs">
+          <button onclick="window.resetDefaultSettings()" class="btn-secondary py-1.5 px-3 rounded-lg text-xs font-semibold">
             ↺ Mặc định
           </button>
         </div>
 
-        <div class="space-y-5 mt-4 text-xs">
+        <div class="space-y-4 mt-4 text-xs">
           
-          <!-- Nhóm 1: Tốc độ chấm & Độ nhạy quang học -->
-          <div class="space-y-3">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">1. Tốc độ chấm & Công nghệ nhận diện OMR</h3>
+          <!-- Nhóm 1: Tốc độ chấm & Độ nhạy -->
+          <div class="space-y-2.5">
+            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">1. Tốc độ & Độ nhạy nhận diện</h3>
             
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Tốc độ khóa ảnh tự động (Auto-Scan Speed)</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Thời gian giữ ổn định 4 ô vuông góc trước khi tự động chụp & chấm</div>
+                <div class="font-bold text-slate-900 dark:text-white">Tốc độ tự động chấm</div>
+                <div class="text-[11px] text-slate-400">Thời gian giữ 4 góc trước khi chụp</div>
               </div>
-              <select id="settingScanSpeed" onchange="window.saveSettingsFromUI()" class="py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold">
-                <option value="fast">⚡ Nhanh (0.3 giây - Chấm tức thì)</option>
-                <option value="normal">🎯 Chuẩn QM (0.6 giây - So khớp 2 khung hình)</option>
-                <option value="accurate">🛡️ Chính xác cao (1.0 giây - Chống rung tay)</option>
+              <select id="settingScanSpeed" onchange="window.saveSettingsFromUI()" class="py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option value="fast">⚡ Nhanh (0.3s)</option>
+                <option value="normal">🎯 Chuẩn QM (0.6s)</option>
+                <option value="accurate">🛡️ Chính xác cao (1.0s)</option>
               </select>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Độ nhạy nhận diện vết chì tô (Bubble Fill Sensitivity)</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Điều chỉnh ngưỡng đọc điểm đen cho phù hợp với loại bút chì học sinh dùng</div>
+                <div class="font-bold text-slate-900 dark:text-white">Độ nhạy vết chì</div>
+                <div class="text-[11px] text-slate-400">Ngưỡng đậm/nhạt của bút chì</div>
               </div>
-              <select id="settingSensitivity" onchange="window.saveSettingsFromUI()" class="py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold">
-                <option value="high">Nhạy cao (Bút chì nhạt HB / Ánh sáng yếu)</option>
-                <option value="normal">Chuẩn QM (Mặc định - Bút chì 2B/B)</option>
-                <option value="strict">Khắt khe (Chống nhận nhầm vết tẩy xóa)</option>
+              <select id="settingSensitivity" onchange="window.saveSettingsFromUI()" class="py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option value="high">Nhạy cao (Chì nhạt HB)</option>
+                <option value="normal">Chuẩn QM (Chì 2B/B)</option>
+                <option value="strict">Khắt khe (Chống lem)</option>
               </select>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Vẽ ô vuông xanh định vị (`AnchorPoint`) lên ảnh kết quả</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Hiển thị các ô định vị góc và nội bộ đã nhận diện được trên tờ phiếu chấm</div>
+                <div class="font-bold text-slate-900 dark:text-white">Vẽ ô xanh định vị lên ảnh chấm</div>
+                <div class="text-[11px] text-slate-400">Hiển thị các góc đã khóa trên phiếu</div>
               </div>
               <label class="qm-switch shrink-0">
                 <input type="checkbox" id="settingShowAnchors" checked onchange="window.saveSettingsFromUI()">
@@ -639,14 +689,14 @@
             </div>
           </div>
 
-          <!-- Nhóm 2: Phản hồi & Hiển thị khi quét -->
-          <div class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">2. Phản hồi & Hiển thị khi quét liên tục</h3>
+          <!-- Nhóm 2: Phản hồi khi quét -->
+          <div class="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">2. Phản hồi & Cảnh báo</h3>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Xem chi tiết điểm ngay sau khi quét (`View Score Popup`)</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tắt mục này nếu muốn quét liên tục hàng chục tờ mà không cần bấm đóng hộp thoại</div>
+                <div class="font-bold text-slate-900 dark:text-white">Xem chi tiết ngay sau khi quét</div>
+                <div class="text-[11px] text-slate-400">Mở popup xem bài hoặc chỉ hiện thông báo góc</div>
               </div>
               <label class="qm-switch shrink-0">
                 <input type="checkbox" id="settingViewScoreImmediately" checked onchange="window.saveSettingsFromUI()">
@@ -654,10 +704,9 @@
               </label>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Âm thanh thông báo (Bíp khi chấm xong)</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Phát tiếng bíp ngắn khi nhận diện thành công 1 phiếu trả lời</div>
+                <div class="font-bold text-slate-900 dark:text-white">Âm thanh bíp khi chấm xong</div>
               </div>
               <label class="qm-switch shrink-0">
                 <input type="checkbox" id="settingSoundEnabled" checked onchange="window.saveSettingsFromUI()">
@@ -665,26 +714,9 @@
               </label>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Rung phản hồi trên điện thoại (Vibration)</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Rung nhẹ điện thoại khi khóa góc và lưu bài thành công</div>
-              </div>
-              <label class="qm-switch shrink-0">
-                <input type="checkbox" id="settingVibrationEnabled" checked onchange="window.saveSettingsFromUI()">
-                <span class="qm-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Nhóm 3: Cảnh báo lỗi & Làm tròn điểm -->
-          <div class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">3. Cảnh báo thông minh & Quy tắc làm tròn điểm</h3>
-
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-              <div>
-                <div class="font-bold text-slate-900 dark:text-white">Cảnh báo khi Mã đề trên phiếu chưa có trong kho Đáp án</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Thông báo ngay nếu học sinh tô nhầm mã đề lạ chưa nhập đáp án</div>
+                <div class="font-bold text-slate-900 dark:text-white">Cảnh báo mã đề chưa có đáp án</div>
               </div>
               <label class="qm-switch shrink-0">
                 <input type="checkbox" id="settingWarnNoKey" checked onchange="window.saveSettingsFromUI()">
@@ -692,41 +724,28 @@
               </label>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
-                <div class="font-bold text-slate-900 dark:text-white">Đánh dấu cảnh báo bài có câu tô đúp (>1 ô) hoặc bỏ trống</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Giúp giáo viên lọc nhanh các phiếu cần kiểm tra/chỉnh sửa thủ công</div>
+                <div class="font-bold text-slate-900 dark:text-white">Quy tắc làm tròn tổng điểm</div>
               </div>
-              <label class="qm-switch shrink-0">
-                <input type="checkbox" id="settingWarnDoubleOrBlank" checked onchange="window.saveSettingsFromUI()">
-                <span class="qm-slider"></span>
-              </label>
-            </div>
-
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div class="font-bold text-slate-900 dark:text-white">Quy tắc làm tròn Tổng điểm</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Áp dụng khi tính tổng điểm Phần 1 + Phần 2 + Phần 3</div>
-              </div>
-              <select id="settingScoreRounding" onchange="window.saveSettingsFromUI()" class="py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold">
-                <option value="0.01">Làm tròn 2 chữ số thập phân (0.01 - Chuẩn BGD)</option>
-                <option value="0.05">Làm tròn đến 0.05</option>
-                <option value="0.1">Làm tròn 1 chữ số thập phân (0.1)</option>
-                <option value="0.25">Làm tròn đến 0.25</option>
-                <option value="none">Giữ nguyên không làm tròn</option>
+              <select id="settingScoreRounding" onchange="window.saveSettingsFromUI()" class="py-1.5 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option value="0.01">2 số thập phân (0.01 - BGD)</option>
+                <option value="0.05">Làm tròn 0.05</option>
+                <option value="0.1">Làm tròn 0.1</option>
+                <option value="0.25">Làm tròn 0.25</option>
               </select>
             </div>
           </div>
 
-          <!-- Nhóm 4: Sao lưu & Khôi phục dữ liệu -->
-          <div class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">4. Sao lưu & Quản lý dữ liệu</h3>
+          <!-- Nhóm 3: Sao lưu dữ liệu -->
+          <div class="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">3. Sao lưu & Khôi phục</h3>
             <div class="flex flex-wrap items-center gap-2">
               <button onclick="window.exportBackupJson()" class="btn-secondary py-2 px-3.5 rounded-lg text-xs font-semibold">
-                💾 Tải file Sao lưu toàn bộ dữ liệu (.json)
+                💾 Tải file Sao lưu (.json)
               </button>
               <button onclick="document.getElementById('backupJsonFileInput').click()" class="btn-secondary py-2 px-3.5 rounded-lg text-xs font-semibold">
-                📂 Khôi phục dữ liệu từ file (.json)
+                📂 Khôi phục dữ liệu (.json)
               </button>
             </div>
           </div>
@@ -739,39 +758,43 @@
 
   <!-- ================= MOBILE DEDICATED BOTTOM NAVIGATION BAR ================= -->
   <nav class="mobile-bottom-nav">
-    <button id="mobileNavBtn_hub" onclick="window.switchTab('hub')" class="mobile-nav-item active">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+    <button id="mobileTabBtn_hub" onclick="window.switchTab('hub')" class="mobile-nav-item active">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
       <span>Bài thi</span>
     </button>
-    <button id="mobileNavBtn_exams" onclick="window.switchTab('exams')" class="mobile-nav-item">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+    <button id="mobileTabBtn_exams" onclick="window.switchTab('exams')" class="mobile-nav-item">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
       <span>Đáp án</span>
     </button>
-    <button id="mobileNavBtn_scan" onclick="window.switchTab('scan')" class="mobile-nav-item">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-      <span>Chấm bài</span>
+    <button id="mobileTabBtn_scan" onclick="window.switchTab('scan')" class="mobile-nav-item">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+      <span>Chấm</span>
     </button>
-    <button id="mobileNavBtn_results" onclick="window.switchTab('results')" class="mobile-nav-item">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+    <button id="mobileTabBtn_classes" onclick="window.switchTab('classes')" class="mobile-nav-item">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+      <span>Lớp</span>
+    </button>
+    <button id="mobileTabBtn_results" onclick="window.switchTab('results')" class="mobile-nav-item">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
       <span>Đã chấm</span>
     </button>
-    <button id="mobileNavBtn_templates" onclick="window.switchTab('templates')" class="mobile-nav-item">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-      <span>Mẫu phiếu</span>
+    <button id="mobileTabBtn_stats" onclick="window.switchTab('stats')" class="mobile-nav-item">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      <span>Thống kê</span>
     </button>
-    <button id="mobileNavBtn_settings" onclick="window.switchTab('settings')" class="mobile-nav-item">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+    <button id="mobileTabBtn_settings" onclick="window.switchTab('settings')" class="mobile-nav-item">
+      <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
       <span>Cài đặt</span>
     </button>
   </nav>
 
   <!-- ================= MODALS ================= -->
 
-  <!-- MODAL 1: CẤU HÌNH BÀI KIỂM TRA MỚI / SỬA BÀI KIỂM TRA (CHUẨN HÌNH 1 - NEWQUIZACTIVITY) -->
+  <!-- MODAL: CẤU HÌNH BÀI KIỂM TRA MỚI / SỬA BÀI KIỂM TRA -->
   <div id="createExamModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[94vh] flex flex-col overflow-hidden">
       
-      <!-- Top Bar giống Hình 1: ← Bài kiểm tra mới  [LƯU] -->
+      <!-- Top Bar: ← Bài kiểm tra mới  [LƯU] -->
       <div class="px-4 py-3 bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-between shrink-0">
         <div class="flex items-center space-x-2.5">
           <button onclick="window.closeCreateExamModal()" class="p-1 rounded hover:bg-white/10 text-lg leading-none">←</button>
@@ -782,7 +805,7 @@
         </button>
       </div>
 
-      <!-- Nội dung Form cấu hình (Cuộn mượt) -->
+      <!-- Nội dung Form cấu hình -->
       <div class="p-4 sm:p-5 space-y-4 overflow-y-auto text-xs flex-1">
         
         <!-- 1. Tên bài kiểm tra -->
@@ -791,7 +814,7 @@
           <input type="text" id="newExamNameInput" placeholder="Tên bài kiểm tra (VD: Ktra 15p, Khảo sát Toán 12...)" class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-blue-600">
         </div>
 
-        <!-- 2. Chọn phiếu có mã đề (3 số / 4 số + Dropdown + Nút Kính lúp xem phiếu) -->
+        <!-- 2. Chọn phiếu có mã đề -->
         <div>
           <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
             <label class="font-bold text-sm text-slate-900 dark:text-white">2. Chọn phiếu có mã đề:</label>
@@ -890,18 +913,18 @@
             </div>
           </div>
 
-          <!-- Chọn lớp áp dụng -->
-          <div class="pt-1">
-            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Lớp học áp dụng</label>
-            <select id="examClassSelect" class="w-full py-2 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold text-xs">
+          <!-- 5. GÁN CÁC LỚP HỌC ÁP DỤNG (ĐA LỚP - YÊU CẦU 5) -->
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <label class="block font-bold text-xs text-slate-900 dark:text-white mb-1.5">5. Gán lớp học áp dụng (Một bài thi cho nhiều lớp)</label>
+            <div id="examClassCheckboxesList">
               <!-- Populated via JS -->
-            </select>
+            </div>
           </div>
         </div>
 
       </div>
 
-      <!-- Footer: Tổng điểm: X (Chuẩn Hình 1) -->
+      <!-- Footer: Tổng điểm: X -->
       <div class="px-5 py-3 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
         <button onclick="window.closeCreateExamModal()" class="btn-secondary py-1.5 px-4 rounded-xl text-xs font-semibold">
           Hủy
@@ -919,7 +942,62 @@
     </div>
   </div>
 
-  <!-- MODAL 1B: XEM TRƯỚC MẪU PHIẾU KHI BẤM NÚT [🔍] -->
+  <!-- MODAL: TẠO LỚP HỌC MỚI (YÊU CẦU 4) -->
+  <div id="createClassModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Thêm Lớp Học Mới</h3>
+        <button onclick="window.closeCreateClassModal()" class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Lớp Học</label>
+          <input type="text" id="newClassNameInput" placeholder="Ví dụ: 12A1, 12 Tin, Ktra Chung..." class="w-full py-2 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Khối Lớp</label>
+          <select id="newClassGradeInput" class="w-full py-2 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <option value="12">Khối 12</option>
+            <option value="11">Khối 11</option>
+            <option value="10">Khối 10</option>
+            <option value="9">Khối 9</option>
+            <option value="other">Khác</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-5 flex items-center justify-end space-x-2">
+        <button onclick="window.closeCreateClassModal()" class="btn-secondary py-1.5 px-3.5 rounded-xl text-xs font-semibold">Hủy</button>
+        <button onclick="window.saveNewClass()" class="btn-primary py-1.5 px-4 rounded-xl text-xs font-bold shadow-sm">Lưu Lớp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DÁN NHANH DANH SÁCH HỌC SINH (YÊU CẦU 4) -->
+  <div id="importStudentsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Dán Danh Sách Học Sinh Nhanh</h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">Dán nhiều dòng dạng "SBD Họ và tên" hoặc phân cách bằng Tab / Phẩy</p>
+        </div>
+        <button onclick="window.closeImportStudentsModal()" class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <textarea id="batchStudentsText" rows="8" placeholder="120101 Nguyễn Văn An&#10;120102 Trần Thị Bình&#10;120103 Lê Hoàng Long" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-mono text-xs focus:outline-none focus:border-blue-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+      </div>
+      <div class="mt-4 flex items-center justify-between">
+        <button onclick="window.downloadStudentExcelTemplate()" class="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+          ⬇️ File mẫu Excel (.xlsx)
+        </button>
+        <div class="flex items-center space-x-2">
+          <button onclick="window.closeImportStudentsModal()" class="btn-secondary py-1.5 px-3 rounded-xl text-xs">Hủy</button>
+          <button onclick="window.handleBatchStudentsImport()" class="btn-primary py-1.5 px-4 rounded-xl text-xs font-bold shadow-sm">Nạp Học Sinh</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: XEM TRƯỚC MẪU PHIẾU -->
   <div id="sheetPreviewModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col">
       <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
@@ -943,46 +1021,22 @@
     </div>
   </div>
 
-  <!-- MODAL 2: XUẤT KẾT QUẢ (3 CHẾ ĐỘ CHUẨN APP QM - QUIZDETAILACTIVITY) -->
+  <!-- MODAL: XUẤT KẾT QUẢ EXCEL -->
   <div id="exportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 dark:border-slate-800">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h3 class="text-base font-bold text-slate-900 dark:text-white">⇅ Xuất Kết Quả Chấm Thi</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Chọn định dạng báo cáo cần tải về máy</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Tải file Excel báo cáo điểm chi tiết</p>
         </div>
         <button onclick="window.closeExportModal()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
       </div>
 
       <div class="space-y-2.5 my-4 text-xs">
-        <button onclick="window.exportResultsByMode('scores')" class="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-left transition">
+        <button onclick="window.exportResultsToExcel()" class="w-full p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/40 flex items-center justify-between text-left transition hover:border-blue-500">
           <div>
-            <div class="font-bold text-sm text-slate-900 dark:text-white">1. Xuất Kết quả Điểm (.xlsx)</div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Bảng điểm tổng hợp gồm SBD, Họ tên, Mã đề, Điểm P1, P2, P3, Tổng điểm & Xếp loại</div>
-          </div>
-          <span class="text-blue-600 font-bold text-base">⬇️</span>
-        </button>
-
-        <button onclick="window.exportResultsByMode('choices')" class="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-left transition">
-          <div>
-            <div class="font-bold text-sm text-slate-900 dark:text-white">2. Xuất Kết quả Lựa chọn (.xlsx)</div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Bảng chi tiết đáp án A/B/C/D, Đ/S và số điền mà từng học sinh đã chọn</div>
-          </div>
-          <span class="text-blue-600 font-bold text-base">⬇️</span>
-        </button>
-
-        <button onclick="window.exportResultsByMode('matrix')" class="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-left transition">
-          <div>
-            <div class="font-bold text-sm text-slate-900 dark:text-white">3. Xuất Kết quả Đúng / Sai (.xlsx)</div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Ma trận chấm 1 (Đúng) / 0 (Sai) từng câu và từng ý kèm thống kê tỷ lệ %</div>
-          </div>
-          <span class="text-blue-600 font-bold text-base">⬇️</span>
-        </button>
-
-        <button onclick="window.exportResultsToExcel()" class="w-full p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/40 flex items-center justify-between text-left transition">
-          <div>
-            <div class="font-bold text-sm text-blue-700 dark:text-blue-300">⭐ Xuất Gộp Đầy Đủ Cả 3 Sheet (.xlsx)</div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tất cả trong 1 file Excel (Bảng điểm + Lựa chọn + Ma trận Đúng/Sai)</div>
+            <div class="font-bold text-sm text-blue-700 dark:text-blue-300">⭐ Xuất Báo Cáo Excel Đa Lớp (.xlsx)</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Sheet 1: Tổng hợp so sánh các lớp • Sheet 2..N: Bảng điểm chi tiết từng lớp</div>
           </div>
           <span class="text-blue-600 font-bold text-base">⬇️</span>
         </button>
@@ -994,7 +1048,7 @@
     </div>
   </div>
 
-  <!-- MODAL 3: QUÉT MÃ QR ĐÁP ÁN -->
+  <!-- MODAL: QUÉT MÃ QR ĐÁP ÁN -->
   <div id="qrScannerModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-200 dark:border-slate-800 text-center">
       <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800 mb-3">
@@ -1021,7 +1075,7 @@
     </div>
   </div>
 
-  <!-- MODAL 4: XUẤT & CHIA SẺ MÃ QR ĐÁP ÁN -->
+  <!-- MODAL: XUẤT & CHIA SẺ MÃ QR ĐÁP ÁN -->
   <div id="qrShareModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-xs w-full p-5 shadow-xl border border-slate-200 dark:border-slate-800 text-center">
       <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 mb-3">
@@ -1048,7 +1102,7 @@
     </div>
   </div>
 
-  <!-- MODAL 5: XEM BÀI ĐÃ CHẤM & BẢNG DỮ LIỆU NHẬN DIỆN + CHỈNH SỬA THỦ CÔNG CÓ DẤU HIỆU NHẬN BIẾT (REQUIREMENT 4) -->
+  <!-- MODAL: XEM BÀI ĐÃ CHẤM & BẢNG DỮ LIỆU NHẬN DIỆN + CHỈNH SỬA THỦ CÔNG -->
   <div id="resultModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[95vh] flex flex-col overflow-hidden">
       
@@ -1075,7 +1129,7 @@
         </div>
       </div>
 
-      <!-- Body cuộn: Phía trên là Ảnh phiếu chấm (Zoom / Chuyển ảnh gốc), Phía dưới là Bảng dữ liệu nhận diện & Chỉnh sửa thủ công -->
+      <!-- Body cuộn: Ảnh phiếu chấm + Bảng dữ liệu chỉnh sửa -->
       <div class="p-3 sm:p-5 overflow-y-auto space-y-4 flex-1">
         
         <!-- 1. Tóm tắt điểm từng phần -->
@@ -1094,12 +1148,12 @@
           </div>
         </div>
 
-        <!-- 2. KHUNG XEM ẢNH PHIẾU CHẤM (HỖ TRỢ PHÓNG TO / THU NHỎ & ĐỐI CHIẾU ẢNH GỐC) -->
+        <!-- 2. KHUNG XEM ẢNH PHIẾU CHẤM -->
         <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-950 overflow-hidden">
           <div class="px-3 py-2 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
             <div class="flex items-center space-x-2">
               <span class="font-semibold text-white">🖼️ Hình ảnh phiếu chấm</span>
-              <span class="text-[11px] text-slate-400">(Xanh lá: Đúng | Đỏ: Sai | Vàng: Đáp án chuẩn | Ô vuông xanh: Điểm định vị)</span>
+              <span class="text-[11px] text-slate-400">(Xanh lá: Đúng | Đỏ: Sai | Vàng: Đáp án chuẩn)</span>
             </div>
             <div class="flex items-center space-x-1.5">
               <button onclick="window.zoomReviewImage(-0.25)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold" title="Thu nhỏ">🔍 -</button>
@@ -1119,7 +1173,7 @@
           </div>
         </div>
 
-        <!-- 3. BẢNG DỮ LIỆU NHẬN DIỆN GỌN GÀNG & CHỈNH SỬA THỦ CÔNG (CÓ DẤU HIỆU NHẬN BIẾT) -->
+        <!-- 3. BẢNG DỮ LIỆU NHẬN DIỆN GỌN GÀNG & CHỈNH SỬA THỦ CÔNG -->
         <div id="manualReviewEditorContainer" class="space-y-4">
           <!-- Rendered dynamically via JS -->
         </div>
