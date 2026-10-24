@@ -1,6 +1,6 @@
 /**
  * ỨNG DỤNG QUẢN LÝ VÀ CHẤM THI TRẮC NGHIỆM TRỰC TUYẾN - QMATH OMR 2025
- * Phiên bản chuẩn hóa - Giao diện tối giản đồng nhất - Hỗ trợ Mobile Navigation Bar
+ * Phiên bản v2.2.1 - Tối giản, đồng nhất, phòng thủ lỗi tối đa
  * Bản quyền: QMATH (chamthi.qmath.io.vn)
  */
 
@@ -82,7 +82,7 @@ const SHEET_TYPES = {
 
 window.SHEET_TYPES = SHEET_TYPES;
 
-const STORAGE_KEY = "QMATH_OMR_DATA_V3";
+const STORAGE_KEY = "QMATH_OMR_DATA_V4";
 
 const defaultState = {
   currentTab: "scan",
@@ -148,26 +148,37 @@ class AppState {
   load() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.exams) && parsed.exams.length > 0) {
+          return parsed;
+        }
+      }
     } catch (e) {
-      console.warn("Could not load from localStorage:", e);
+      console.warn("Storage load error:", e);
     }
-    return defaultState;
+    return JSON.parse(JSON.stringify(defaultState));
   }
 
   save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
     } catch (e) {
-      console.error("Failed to save state to localStorage:", e);
+      console.error("Storage save error:", e);
     }
   }
 
   getCurrentExam() {
+    if (!this.data.exams || this.data.exams.length === 0) {
+      this.data.exams = JSON.parse(JSON.stringify(defaultState.exams));
+    }
     return this.data.exams.find(e => e.id === this.data.currentExamId) || this.data.exams[0];
   }
 
   getCurrentClass() {
+    if (!this.data.classes || this.data.classes.length === 0) {
+      this.data.classes = JSON.parse(JSON.stringify(defaultState.classes));
+    }
     return this.data.classes.find(c => c.id === this.data.currentClassId) || this.data.classes[0];
   }
 
@@ -203,10 +214,12 @@ class AppState {
 const appState = new AppState();
 window.appState = appState;
 
-// --- ÂM THANH BEEP THÔNG BÁO ---
+// --- ÂM THANH BEEP ---
 function playBeep(isSuccess = true) {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
@@ -219,529 +232,104 @@ function playBeep(isSuccess = true) {
       osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.2);
     }
 
-    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-
     osc.start();
     osc.stop(audioCtx.currentTime + 0.18);
   } catch (e) {}
 }
+window.playBeep = playBeep;
 
-// --- QUẢN LÝ CAMERA CHẤM BÀI ---
-let activeStream = null;
-let currentFacingMode = "environment";
-let autoScanTimer = null;
-let isAutoScanActive = false;
-let lastGradedSBD = "";
-let lastGradedTime = 0;
+// =========================================================================
+// === MODAL TẠO & CHỌN LOẠI PHIẾU CHẤM (ĐỊNH NGHĨA TRỰC TIẾP TRÊN WINDOW) ===
+// =========================================================================
 
-async function initCamera() {
-  const video = document.getElementById("scannerVideo");
-  if (!video) return;
-
-  if (activeStream) {
-    activeStream.getTracks().forEach(track => track.stop());
-  }
-
-  try {
-    const constraints = {
-      video: {
-        facingMode: { ideal: currentFacingMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      audio: false
-    };
-
-    activeStream = await navigator.mediaDevices.getUserMedia(constraints);
-    video.srcObject = activeStream;
-    await video.play();
-
-    const statusEl = document.getElementById("cameraStatus");
-    if (statusEl) {
-      statusEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1.5 animate-pulse"></span>Camera đang sẵn sàng`;
-    }
-  } catch (err) {
-    console.error("Camera access failed:", err);
-    const statusEl = document.getElementById("cameraStatus");
-    if (statusEl) {
-      statusEl.innerHTML = `<span class="text-rose-600">Không thể mở camera (${err.name || "lỗi quyền"}). Hãy dùng nút "Tải ảnh từ máy"!</span>`;
-    }
-  }
-}
-
-function switchCamera() {
-  currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
-  initCamera();
-}
-
-function doGrade(sourceElement) {
-  const exam = appState.getCurrentExam();
-  if (!exam) {
-    alert("Vui lòng tạo hoặc chọn một bài thi trước!");
-    return;
-  }
-
-  try {
-    const tStart = performance.now();
-    const gradeOutput = window.omrEngine.gradeFromImageSource(sourceElement, exam.config, exam.answerKeys);
-    const tEnd = performance.now();
-    const durationMs = Math.round(tEnd - tStart);
-
-    const res = gradeOutput.result;
-    const studentName = appState.findStudentName(res.sbd);
-
-    const resultRecord = {
-      id: "res_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
-      examId: exam.id,
-      classId: exam.classId,
-      sbd: res.sbd,
-      studentName: studentName,
-      made: res.made,
-      part1_score: res.part1_score,
-      part2_score: res.part2_score,
-      part3_score: res.part3_score,
-      total_score: res.total_score,
-      part1_answers: res.part1_answers,
-      part2_answers: res.part2_answers,
-      part3_answers: res.part3_answers,
-      part1_correct: res.part1_correct,
-      part3_correct: res.part3_correct,
-      status: res.status,
-      timestamp: res.timestamp,
-      annotatedDataUrl: gradeOutput.annotatedDataUrl,
-      durationMs: durationMs
-    };
-
-    appState.addResult(resultRecord);
-    playBeep(true);
-
-    showResultModal(resultRecord);
-    renderResultsTable();
-
-    if (res.total_score >= 9.0 && typeof confetti === "function") {
-      confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
-    }
-  } catch (err) {
-    console.error("Grading failed:", err);
-    playBeep(false);
-    alert("Chưa nhận diện được phiếu thi! Vui lòng căn phiếu thi rõ ràng trong khung sáng và thử lại.");
-  }
-}
-
-function captureAndGrade() {
-  const video = document.getElementById("scannerVideo");
-  if (!video || !activeStream) {
-    alert("Camera chưa bật hoặc không khả dụng. Hãy dùng nút 'Tải ảnh từ máy'!");
-    return;
-  }
-  doGrade(video);
-}
-
-function toggleAutoScan() {
-  isAutoScanActive = !isAutoScanActive;
-  const btn = document.getElementById("btnAutoScan");
-
-  if (isAutoScanActive) {
-    btn.classList.remove("bg-slate-800", "text-slate-300");
-    btn.classList.add("bg-blue-600", "text-white");
-    btn.innerHTML = `⚡ Tự động: BẬT`;
-
-    autoScanTimer = setInterval(() => {
-      const video = document.getElementById("scannerVideo");
-      if (!video || video.readyState !== 4) return;
-
-      try {
-        const exam = appState.getCurrentExam();
-        const output = window.omrEngine.gradeFromImageSource(video, exam.config, exam.answerKeys);
-        const res = output.result;
-
-        const now = Date.now();
-        if (res.sbd && res.sbd !== "000000" && (res.sbd !== lastGradedSBD || now - lastGradedTime > 3000)) {
-          lastGradedSBD = res.sbd;
-          lastGradedTime = now;
-
-          const studentName = appState.findStudentName(res.sbd);
-          const resultRecord = {
-            id: "res_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
-            examId: exam.id,
-            classId: exam.classId,
-            sbd: res.sbd,
-            studentName: studentName,
-            made: res.made,
-            part1_score: res.part1_score,
-            part2_score: res.part2_score,
-            part3_score: res.part3_score,
-            total_score: res.total_score,
-            part1_answers: res.part1_answers,
-            part2_answers: res.part2_answers,
-            part3_answers: res.part3_answers,
-            part1_correct: res.part1_correct,
-            part3_correct: res.part3_correct,
-            status: res.status,
-            timestamp: res.timestamp,
-            annotatedDataUrl: output.annotatedDataUrl
-          };
-
-          appState.addResult(resultRecord);
-          playBeep(true);
-          renderResultsTable();
-        }
-      } catch (e) {}
-    }, 1500);
-  } else {
-    clearInterval(autoScanTimer);
-    btn.classList.remove("bg-blue-600", "text-white");
-    btn.classList.add("bg-slate-800", "text-slate-300");
-    btn.innerHTML = `⚡ Tự động: TẮT`;
-  }
-}
-
-function handleFileUpload(event) {
-  const files = event.target.files;
-  if (!files || files.length === 0) return;
-
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => doGrade(img);
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-  event.target.value = "";
-}
-
-function gradeSampleSheet() {
-  const img = new Image();
-  img.onload = () => doGrade(img);
-  img.src = "samples/bai_thi_mau_101.png";
-}
-
-function showResultModal(record) {
-  const modal = document.getElementById("resultModal");
+window.showCreateExamModal = function showCreateExamModal() {
+  const modal = document.getElementById("createExamModal");
   if (!modal) return;
 
-  document.getElementById("modalSbd").innerText = record.sbd;
-  document.getElementById("modalStudentName").innerText = record.studentName;
-  document.getElementById("modalMade").innerText = record.made;
+  const select = document.getElementById("examSheetTypeSelect");
+  if (select && window.SHEET_TYPES) {
+    select.innerHTML = Object.entries(window.SHEET_TYPES).map(([k, v]) => `
+      <option value="${k}">${v.name} - ${v.desc}</option>
+    `).join("");
+  }
 
-  const scoreEl = document.getElementById("modalTotalScore");
-  scoreEl.innerText = record.total_score.toFixed(2);
-  scoreEl.className = `text-4xl font-extrabold ${record.total_score >= 5.0 ? 'text-blue-600' : 'text-slate-800'}`;
+  const classSelect = document.getElementById("examClassSelect");
+  if (classSelect && window.appState) {
+    classSelect.innerHTML = window.appState.data.classes.map(c => `
+      <option value="${c.id}" ${c.id === window.appState.data.currentClassId ? 'selected' : ''}>${c.name}</option>
+    `).join("");
+  }
 
-  document.getElementById("modalP1Score").innerText = record.part1_score.toFixed(2) + " đ";
-  document.getElementById("modalP2Score").innerText = record.part2_score.toFixed(2) + " đ";
-  document.getElementById("modalP3Score").innerText = record.part3_score.toFixed(2) + " đ";
-
-  document.getElementById("modalPreviewImg").src = record.annotatedDataUrl;
   modal.classList.remove("hidden");
-}
+};
 
-function closeResultModal() {
-  const modal = document.getElementById("resultModal");
+window.closeCreateExamModal = function closeCreateExamModal() {
+  const modal = document.getElementById("createExamModal");
   if (modal) modal.classList.add("hidden");
-}
+};
+
+window.saveNewExam = function saveNewExam() {
+  const nameInput = document.getElementById("newExamNameInput");
+  const sheetTypeSelect = document.getElementById("examSheetTypeSelect");
+  const classSelect = document.getElementById("examClassSelect");
+
+  const name = (nameInput && nameInput.value.trim()) || "Bài thi mới";
+  const sheetTypeKey = (sheetTypeSelect && sheetTypeSelect.value) || "A4_TN2025_BGD_1239";
+  const classId = (classSelect && classSelect.value) || window.appState.data.currentClassId;
+
+  const sheetDef = window.SHEET_TYPES[sheetTypeKey] || window.SHEET_TYPES["A4_TN2025_BGD_1239"];
+
+  const newExam = {
+    id: "exam_" + Date.now(),
+    classId: classId,
+    name: name,
+    sheet_type: sheetTypeKey,
+    date: new Date().toISOString().split("T")[0],
+    config: {
+      p1_num: sheetDef.p1_num,
+      p2_num: sheetDef.p2_num,
+      p3_num: sheetDef.p3_num,
+      p1_score: sheetDef.p1_score,
+      p3_score: sheetDef.p3_score
+    },
+    answerKeys: {
+      "101": createDefaultKey(sheetDef)
+    }
+  };
+
+  window.appState.data.exams.push(newExam);
+  window.appState.data.currentExamId = newExam.id;
+  window.appState.data.activeMade = "101";
+  window.appState.save();
+
+  window.updateExamSelect && window.updateExamSelect();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+  window.closeCreateExamModal();
+  alert(`Đã tạo bài thi "${name}" với loại phiếu [${sheetDef.name}]!`);
+};
 
 // =========================================================================
-// === BẢNG ĐÁP ÁN TRỰC QUAN (VISUAL BUBBLE ANSWER SHEET) ===
+// === NẠP ĐÁP ÁN BẰNG EXCEL (.XLSX) ===
 // =========================================================================
 
-function renderVisualAnswerSheet() {
-  const exam = appState.getCurrentExam();
-  if (!exam) return;
-
-  // Cập nhật thông tin Header
-  const titleEl = document.getElementById("examDetailTitle");
-  const badgeEl = document.getElementById("examSheetBadge");
-  const sheetInfo = SHEET_TYPES[exam.sheet_type] || SHEET_TYPES["A4_TN2025_BGD_1239"];
-
-  if (titleEl) titleEl.innerText = exam.name;
-  if (badgeEl) badgeEl.innerText = sheetInfo.name;
-
-  const container = document.getElementById("visualAnswerSheetContainer");
-  const codeSelector = document.getElementById("visualCodeSelector");
-  if (!container || !codeSelector) return;
-
-  const codes = Object.keys(exam.answerKeys);
-  if (codes.length === 0) {
-    exam.answerKeys["101"] = createDefaultKey(exam.config);
-    appState.save();
-  }
-
-  if (!exam.answerKeys[appState.data.activeMade]) {
-    appState.data.activeMade = Object.keys(exam.answerKeys)[0];
-  }
-  const curMade = appState.data.activeMade;
-  const curKey = exam.answerKeys[curMade] || createDefaultKey(exam.config);
-
-  // 1. Render tab mã đề
-  let codeTabsHtml = "";
-  Object.keys(exam.answerKeys).forEach(c => {
-    const isActive = c === curMade;
-    codeTabsHtml += `
-      <button onclick="selectActiveMade('${c}')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono transition ${isActive ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">
-        MÃ ${c}
-      </button>
-    `;
-  });
-  codeSelector.innerHTML = codeTabsHtml;
-
-  // 2. Render nội dung bảng đáp án
-  const p1Num = exam.config.p1_num || 12;
-  const p2Num = exam.config.p2_num || 0;
-  const p3Num = exam.config.p3_num || 0;
-
-  let sheetHtml = `
-    <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-5">
-      
-      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div class="flex items-center space-x-2">
-          <span class="text-xs uppercase font-bold text-slate-400">Đang chọn:</span>
-          <span class="px-2.5 py-0.5 rounded bg-slate-100 text-slate-900 font-mono font-bold text-sm border border-slate-200">
-            MÃ ${curMade}
-          </span>
-          <span class="text-xs text-slate-500">(${p1Num} câu P1 • ${p2Num} câu P2 • ${p3Num} câu P3)</span>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <button onclick="showQRCodeShareModal('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
-            <span>📱 Mã QR chia sẻ</span>
-          </button>
-          <button onclick="quickTextPastePrompt('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
-            <span>⚡ Dán chuỗi text</span>
-          </button>
-          <button onclick="deleteCurrentMade('${curMade}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold">
-            Xóa mã này
-          </button>
-        </div>
-      </div>
-  `;
-
-  // === PHẦN I ===
-  if (p1Num > 0) {
-    sheetHtml += `
-      <div>
-        <div class="flex items-center justify-between mb-2.5">
-          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
-            Phần I: Trắc Nghiệm Nhiều Lựa Chọn (${p1Num} câu)
-          </h4>
-          <span class="text-[11px] text-slate-500">Chạm ô tròn để chọn/đổi</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-    `;
-
-    for (let q = 0; q < p1Num; q++) {
-      const qNum = q + 1;
-      const curAns = curKey.part1[q] || "";
-      const opts = ["A", "B", "C", "D"];
-
-      sheetHtml += `
-        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-between">
-          <span class="font-mono font-bold text-xs text-slate-500 w-7">C${qNum}</span>
-          <div class="flex items-center space-x-1">
-            ${opts.map(opt => `
-              <button onclick="setPart1Answer('${curMade}', ${q}, '${opt}')" class="bubble-choice ${curAns === opt ? 'selected' : ''}">
-                ${opt}
-              </button>
-            `).join("")}
-          </div>
-        </div>
-      `;
-    }
-    sheetHtml += `</div></div>`;
-  }
-
-  // === PHẦN II ===
-  if (p2Num > 0) {
-    sheetHtml += `
-      <div class="border-t border-slate-100 pt-4">
-        <div class="flex items-center justify-between mb-2.5">
-          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
-            Phần II: Trắc Nghiệm Đúng / Sai (${p2Num} câu - Mỗi câu 4 ý a, b, c, d)
-          </h4>
-          <span class="text-[11px] text-slate-500">Đ (Đúng - Xanh lá) | S (Sai - Đỏ)</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-    `;
-
-    for (let q = 0; q < p2Num; q++) {
-      const qNum = q + 1;
-      const qKey = String(qNum);
-      const subs = curKey.part2[qKey] || ["", "", "", ""];
-      const subLabels = ["a", "b", "c", "d"];
-
-      sheetHtml += `
-        <div class="p-3 rounded-lg border border-slate-200 bg-slate-50">
-          <div class="font-bold text-xs text-slate-700 mb-2 pb-1 border-b border-slate-200">
-            CÂU ${qNum}
-          </div>
-          <div class="space-y-1.5">
-            ${subLabels.map((sLabel, sIdx) => {
-              const val = subs[sIdx] || "";
-              return `
-                <div class="flex items-center justify-between text-xs">
-                  <span class="font-mono font-medium text-slate-600">${sLabel})</span>
-                  <div class="flex items-center space-x-1">
-                    <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'Đ')" class="bubble-tf ${val === 'Đ' ? 'selected-true' : ''}">
-                      Đ
-                    </button>
-                    <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'S')" class="bubble-tf ${val === 'S' ? 'selected-false' : ''}">
-                      S
-                    </button>
-                  </div>
-                </div>
-              `;
-            }).join("")}
-          </div>
-        </div>
-      `;
-    }
-    sheetHtml += `</div></div>`;
-  }
-
-  // === PHẦN III ===
-  if (p3Num > 0) {
-    sheetHtml += `
-      <div class="border-t border-slate-100 pt-4">
-        <div class="flex items-center justify-between mb-2.5">
-          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
-            Phần III: Trả Lời Ngắn (${p3Num} câu - Điền số)
-          </h4>
-          <span class="text-[11px] text-slate-500">Nhập trực tiếp số</span>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-    `;
-
-    for (let q = 0; q < p3Num; q++) {
-      const qNum = q + 1;
-      const curAns = curKey.part3[q] || "";
-
-      sheetHtml += `
-        <div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50">
-          <label class="block font-bold text-[11px] text-slate-600 mb-1">CÂU ${qNum}</label>
-          <input type="text" value="${curAns}" onchange="setPart3Answer('${curMade}', ${q}, this.value)" placeholder="0.0" class="w-full py-1 px-2 rounded border border-slate-300 bg-white font-mono font-bold text-xs text-center text-slate-900 focus:outline-none focus:border-blue-600">
-        </div>
-      `;
-    }
-    sheetHtml += `</div></div>`;
-  }
-
-  sheetHtml += `</div>`;
-  container.innerHTML = sheetHtml;
-}
-
-function selectActiveMade(made) {
-  appState.data.activeMade = made;
-  appState.save();
-  renderVisualAnswerSheet();
-}
-
-function createDefaultKey(config) {
-  const p1 = Array(config.p1_num || 12).fill("A");
-  const p2 = {};
-  for (let i = 1; i <= (config.p2_num || 4); i++) {
-    p2[String(i)] = ["Đ", "S", "Đ", "S"];
-  }
-  const p3 = Array(config.p3_num || 6).fill("0");
-  return { part1: p1, part2: p2, part3: p3 };
-}
-
-function setPart1Answer(made, qIdx, opt) {
-  const exam = appState.getCurrentExam();
-  if (!exam.answerKeys[made]) return;
-  if (exam.answerKeys[made].part1[qIdx] === opt) {
-    exam.answerKeys[made].part1[qIdx] = "";
-  } else {
-    exam.answerKeys[made].part1[qIdx] = opt;
-  }
-  appState.save();
-  renderVisualAnswerSheet();
-}
-
-function setPart2Answer(made, qKey, subIdx, val) {
-  const exam = appState.getCurrentExam();
-  if (!exam.answerKeys[made]) return;
-  if (!exam.answerKeys[made].part2[qKey]) {
-    exam.answerKeys[made].part2[qKey] = ["", "", "", ""];
-  }
-  if (exam.answerKeys[made].part2[qKey][subIdx] === val) {
-    exam.answerKeys[made].part2[qKey][subIdx] = "";
-  } else {
-    exam.answerKeys[made].part2[qKey][subIdx] = val;
-  }
-  appState.save();
-  renderVisualAnswerSheet();
-}
-
-function setPart3Answer(made, qIdx, val) {
-  const exam = appState.getCurrentExam();
-  if (!exam.answerKeys[made]) return;
-  exam.answerKeys[made].part3[qIdx] = val.trim();
-  appState.save();
-}
-
-function addNewMadePrompt() {
-  const code = prompt("Nhập Mã Đề mới (ví dụ: 103, 104, 201...):");
-  if (!code) return;
-  const cleanCode = code.trim();
-  const exam = appState.getCurrentExam();
-  if (exam.answerKeys[cleanCode]) {
-    alert("Mã đề này đã tồn tại!");
-    return;
-  }
-  exam.answerKeys[cleanCode] = createDefaultKey(exam.config);
-  appState.data.activeMade = cleanCode;
-  appState.save();
-  renderVisualAnswerSheet();
-}
-
-function deleteCurrentMade(made) {
-  const exam = appState.getCurrentExam();
-  const codes = Object.keys(exam.answerKeys);
-  if (codes.length <= 1) {
-    alert("Bài thi phải có ít nhất 1 mã đề!");
-    return;
-  }
-  if (confirm(`Bạn có chắc muốn xóa mã đề ${made}?`)) {
-    delete exam.answerKeys[made];
-    appState.data.activeMade = Object.keys(exam.answerKeys)[0];
-    appState.save();
-    renderVisualAnswerSheet();
-  }
-}
-
-function quickTextPastePrompt(made) {
-  const exam = appState.getCurrentExam();
-  const curKey = exam.answerKeys[made];
-  const p1Text = prompt("Nhập chuỗi đáp án Phần I (các chữ cái A, B, C, D liền nhau, ví dụ ABCDABCDABCD):", curKey.part1.join(""));
-  if (p1Text !== null) {
-    const clean = p1Text.replace(/[^A-Za-z]/g, "").toUpperCase();
-    for (let i = 0; i < exam.config.p1_num && i < clean.length; i++) {
-      curKey.part1[i] = clean[i];
-    }
-  }
-  appState.save();
-  renderVisualAnswerSheet();
-}
-
-// =========================================================================
-// === NẠP ĐÁP ÁN BẰNG FILE EXCEL & MÃ QR ===
-// =========================================================================
-
-function triggerExcelKeyUpload() {
+window.triggerExcelKeyUpload = function triggerExcelKeyUpload() {
   const fileInput = document.getElementById("excelKeyFileInput");
   if (fileInput) fileInput.click();
-}
+};
 
-function handleExcelKeyUpload(event) {
+window.handleExcelKeyUpload = function handleExcelKeyUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
+
+  if (typeof XLSX === "undefined") {
+    alert("Thư viện SheetJS chưa sẵn sàng! Vui lòng kiểm tra kết nối mạng.");
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = e => {
@@ -757,7 +345,7 @@ function handleExcelKeyUpload(event) {
         return;
       }
 
-      const exam = appState.getCurrentExam();
+      const exam = window.appState.getCurrentExam();
       let importedCount = 0;
 
       const headerRow = rows[0].map(h => String(h || "").trim().toLowerCase());
@@ -805,12 +393,12 @@ function handleExcelKeyUpload(event) {
         }
 
         exam.answerKeys[codeVal] = newKey;
-        appState.data.activeMade = codeVal;
+        window.appState.data.activeMade = codeVal;
         importedCount++;
       }
 
-      appState.save();
-      renderVisualAnswerSheet();
+      window.appState.save();
+      window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
       playBeep(true);
       alert(`Đã nạp thành công ${importedCount} mã đề từ File Excel!`);
     } catch (err) {
@@ -820,10 +408,14 @@ function handleExcelKeyUpload(event) {
   };
   reader.readAsArrayBuffer(file);
   event.target.value = "";
-}
+};
 
-function downloadExcelKeyTemplate() {
-  const exam = appState.getCurrentExam();
+window.downloadExcelKeyTemplate = function downloadExcelKeyTemplate() {
+  if (typeof XLSX === "undefined") {
+    alert("Thư viện SheetJS chưa sẵn sàng!");
+    return;
+  }
+  const exam = window.appState.getCurrentExam();
   const headers = ["Mã Đề"];
 
   for (let i = 1; i <= exam.config.p1_num; i++) headers.push(`P1_C${i}`);
@@ -842,27 +434,37 @@ function downloadExcelKeyTemplate() {
   const ws = XLSX.utils.aoa_to_sheet(sampleRows);
   XLSX.utils.book_append_sheet(wb, ws, "Mau_Dap_An");
   XLSX.writeFile(wb, "Mau_Dap_An_Chuan_BGD_2025.xlsx");
-}
+};
+
+// =========================================================================
+// === QUÉT & XUẤT MÃ QR ===
+// =========================================================================
 
 let qrScannerStream = null;
 let qrScanInterval = null;
 
-function openQRScannerModal() {
+window.openQRScannerModal = function openQRScannerModal() {
   const modal = document.getElementById("qrScannerModal");
   if (!modal) return;
   modal.classList.remove("hidden");
   startQRCamera();
-}
+};
 
-function closeQRScannerModal() {
+window.closeQRScannerModal = function closeQRScannerModal() {
   const modal = document.getElementById("qrScannerModal");
   if (modal) modal.classList.add("hidden");
   stopQRCamera();
-}
+};
 
 async function startQRCamera() {
   const video = document.getElementById("qrVideoFeed");
+  const statusEl = document.getElementById("qrCameraStatus");
   if (!video) return;
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (statusEl) statusEl.innerHTML = `<span class="text-rose-600">Trình duyệt không hỗ trợ mở camera. Hãy dùng nút 'Tải ảnh QR từ máy'!</span>`;
+    return;
+  }
 
   try {
     qrScannerStream = await navigator.mediaDevices.getUserMedia({
@@ -891,8 +493,7 @@ async function startQRCamera() {
       }
     }, 250);
   } catch (err) {
-    console.error("QR Camera error:", err);
-    const statusEl = document.getElementById("qrCameraStatus");
+    console.warn("QR Camera error:", err);
     if (statusEl) statusEl.innerHTML = `<span class="text-rose-600">Camera QR không khả dụng. Hãy dùng nút 'Tải ảnh QR từ máy'!</span>`;
   }
 }
@@ -908,7 +509,7 @@ function stopQRCamera() {
   }
 }
 
-function handleQRImageUpload(event) {
+window.handleQRImageUpload = function handleQRImageUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
 
@@ -936,11 +537,11 @@ function handleQRImageUpload(event) {
   };
   reader.readAsDataURL(file);
   event.target.value = "";
-}
+};
 
 function handleQRDataImport(qrStr) {
   try {
-    const exam = appState.getCurrentExam();
+    const exam = window.appState.getCurrentExam();
     let made = "";
     let keyObj = null;
 
@@ -967,11 +568,11 @@ function handleQRDataImport(qrStr) {
 
     if (made && keyObj) {
       exam.answerKeys[made] = keyObj;
-      appState.data.activeMade = made;
-      appState.save();
+      window.appState.data.activeMade = made;
+      window.appState.save();
       playBeep(true);
-      closeQRScannerModal();
-      renderVisualAnswerSheet();
+      window.closeQRScannerModal();
+      window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
       alert(`Đã nạp thành công đáp án Mã Đề ${made} từ mã QR!`);
     } else {
       alert("Định dạng dữ liệu mã QR không hợp lệ!");
@@ -982,12 +583,12 @@ function handleQRDataImport(qrStr) {
   }
 }
 
-function showQRCodeShareModal(made) {
+window.showQRCodeShareModal = function showQRCodeShareModal(made) {
   const modal = document.getElementById("qrShareModal");
   const qrcodeContainer = document.getElementById("qrcodeDisplay");
   if (!modal || !qrcodeContainer) return;
 
-  const exam = appState.getCurrentExam();
+  const exam = window.appState.getCurrentExam();
   const key = exam.answerKeys[made];
   if (!key) return;
 
@@ -1008,94 +609,544 @@ function showQRCodeShareModal(made) {
     });
   }
 
-  document.getElementById("qrShareMade").innerText = made;
-  document.getElementById("qrShareExamName").innerText = exam.name;
+  const codeEl = document.getElementById("qrShareMade");
+  const nameEl = document.getElementById("qrShareExamName");
+  if (codeEl) codeEl.innerText = made;
+  if (nameEl) nameEl.innerText = exam.name;
   modal.classList.remove("hidden");
-}
+};
 
-function closeQRShareModal() {
+window.closeQRShareModal = function closeQRShareModal() {
   const modal = document.getElementById("qrShareModal");
   if (modal) modal.classList.add("hidden");
+};
+
+// =========================================================================
+// === QUẢN LÝ MÃ ĐỀ & ĐÁP ÁN TRỰC QUAN ===
+// =========================================================================
+
+window.addNewMadePrompt = function addNewMadePrompt() {
+  const code = prompt("Nhập Mã Đề mới (ví dụ: 103, 104, 201...):");
+  if (!code) return;
+  const cleanCode = code.trim();
+  const exam = window.appState.getCurrentExam();
+  if (exam.answerKeys[cleanCode]) {
+    alert("Mã đề này đã tồn tại!");
+    return;
+  }
+  exam.answerKeys[cleanCode] = createDefaultKey(exam.config);
+  window.appState.data.activeMade = cleanCode;
+  window.appState.save();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+};
+
+window.deleteCurrentMade = function deleteCurrentMade(made) {
+  const exam = window.appState.getCurrentExam();
+  const codes = Object.keys(exam.answerKeys);
+  if (codes.length <= 1) {
+    alert("Bài thi phải có ít nhất 1 mã đề!");
+    return;
+  }
+  if (confirm(`Bạn có chắc muốn xóa mã đề ${made}?`)) {
+    delete exam.answerKeys[made];
+    window.appState.data.activeMade = Object.keys(exam.answerKeys)[0];
+    window.appState.save();
+    window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+  }
+};
+
+window.quickTextPastePrompt = function quickTextPastePrompt(made) {
+  const exam = window.appState.getCurrentExam();
+  const curKey = exam.answerKeys[made];
+  const p1Text = prompt("Nhập chuỗi đáp án Phần I (các chữ cái A, B, C, D liền nhau, ví dụ ABCDABCDABCD):", curKey.part1.join(""));
+  if (p1Text !== null) {
+    const clean = p1Text.replace(/[^A-Za-z]/g, "").toUpperCase();
+    for (let i = 0; i < exam.config.p1_num && i < clean.length; i++) {
+      curKey.part1[i] = clean[i];
+    }
+  }
+  window.appState.save();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+};
+
+window.selectActiveMade = function selectActiveMade(made) {
+  window.appState.data.activeMade = made;
+  window.appState.save();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+};
+
+function createDefaultKey(config) {
+  const p1 = Array(config.p1_num || 12).fill("A");
+  const p2 = {};
+  for (let i = 1; i <= (config.p2_num || 4); i++) {
+    p2[String(i)] = ["Đ", "S", "Đ", "S"];
+  }
+  const p3 = Array(config.p3_num || 6).fill("0");
+  return { part1: p1, part2: p2, part3: p3 };
 }
 
+window.setPart1Answer = function setPart1Answer(made, qIdx, opt) {
+  const exam = window.appState.getCurrentExam();
+  if (!exam.answerKeys[made]) return;
+  if (exam.answerKeys[made].part1[qIdx] === opt) {
+    exam.answerKeys[made].part1[qIdx] = "";
+  } else {
+    exam.answerKeys[made].part1[qIdx] = opt;
+  }
+  window.appState.save();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+};
+
+window.setPart2Answer = function setPart2Answer(made, qKey, subIdx, val) {
+  const exam = window.appState.getCurrentExam();
+  if (!exam.answerKeys[made]) return;
+  if (!exam.answerKeys[made].part2[qKey]) {
+    exam.answerKeys[made].part2[qKey] = ["", "", "", ""];
+  }
+  if (exam.answerKeys[made].part2[qKey][subIdx] === val) {
+    exam.answerKeys[made].part2[qKey][subIdx] = "";
+  } else {
+    exam.answerKeys[made].part2[qKey][subIdx] = val;
+  }
+  window.appState.save();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
+};
+
+window.setPart3Answer = function setPart3Answer(made, qIdx, val) {
+  const exam = window.appState.getCurrentExam();
+  if (!exam.answerKeys[made]) return;
+  exam.answerKeys[made].part3[qIdx] = val.trim();
+  window.appState.save();
+};
+
+window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
+  const exam = window.appState.getCurrentExam();
+  if (!exam) return;
+
+  const titleEl = document.getElementById("examDetailTitle");
+  const badgeEl = document.getElementById("examSheetBadge");
+  const sheetInfo = window.SHEET_TYPES[exam.sheet_type] || window.SHEET_TYPES["A4_TN2025_BGD_1239"];
+
+  if (titleEl) titleEl.innerText = exam.name;
+  if (badgeEl) badgeEl.innerText = sheetInfo.name;
+
+  const container = document.getElementById("visualAnswerSheetContainer");
+  const codeSelector = document.getElementById("visualCodeSelector");
+  if (!container || !codeSelector) return;
+
+  const codes = Object.keys(exam.answerKeys);
+  if (codes.length === 0) {
+    exam.answerKeys["101"] = createDefaultKey(exam.config);
+    window.appState.save();
+  }
+
+  if (!exam.answerKeys[window.appState.data.activeMade]) {
+    window.appState.data.activeMade = Object.keys(exam.answerKeys)[0];
+  }
+  const curMade = window.appState.data.activeMade;
+  const curKey = exam.answerKeys[curMade] || createDefaultKey(exam.config);
+
+  let codeTabsHtml = "";
+  Object.keys(exam.answerKeys).forEach(c => {
+    const isActive = c === curMade;
+    codeTabsHtml += `
+      <button onclick="selectActiveMade('${c}')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono transition ${isActive ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">
+        MÃ ${c}
+      </button>
+    `;
+  });
+  codeSelector.innerHTML = codeTabsHtml;
+
+  const p1Num = exam.config.p1_num || 12;
+  const p2Num = exam.config.p2_num || 0;
+  const p3Num = exam.config.p3_num || 0;
+
+  let sheetHtml = `
+    <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <span class="text-xs uppercase font-bold text-slate-400">Đang chọn:</span>
+          <span class="px-2.5 py-0.5 rounded bg-slate-100 text-slate-900 font-mono font-bold text-sm border border-slate-200">
+            MÃ ${curMade}
+          </span>
+          <span class="text-xs text-slate-500">(${p1Num} câu P1 • ${p2Num} câu P2 • ${p3Num} câu P3)</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="showQRCodeShareModal('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
+            <span>📱 Mã QR chia sẻ</span>
+          </button>
+          <button onclick="quickTextPastePrompt('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
+            <span>⚡ Dán chuỗi text</span>
+          </button>
+          <button onclick="deleteCurrentMade('${curMade}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold">
+            Xóa mã này
+          </button>
+        </div>
+      </div>
+  `;
+
+  if (p1Num > 0) {
+    sheetHtml += `
+      <div>
+        <div class="flex items-center justify-between mb-2.5">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+            Phần I: Trắc Nghiệm Nhiều Lựa Chọn (${p1Num} câu)
+          </h4>
+          <span class="text-[11px] text-slate-500">Chạm ô tròn để chọn/đổi</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+    `;
+
+    for (let q = 0; q < p1Num; q++) {
+      const qNum = q + 1;
+      const curAns = curKey.part1[q] || "";
+      const opts = ["A", "B", "C", "D"];
+
+      sheetHtml += `
+        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-between">
+          <span class="font-mono font-bold text-xs text-slate-500 w-7">C${qNum}</span>
+          <div class="flex items-center space-x-1">
+            ${opts.map(opt => `
+              <button onclick="setPart1Answer('${curMade}', ${q}, '${opt}')" class="bubble-choice ${curAns === opt ? 'selected' : ''}">
+                ${opt}
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+    sheetHtml += `</div></div>`;
+  }
+
+  if (p2Num > 0) {
+    sheetHtml += `
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between mb-2.5">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+            Phần II: Trắc Nghiệm Đúng / Sai (${p2Num} câu - Mỗi câu 4 ý a, b, c, d)
+          </h4>
+          <span class="text-[11px] text-slate-500">Đ (Đúng - Xanh lá) | S (Sai - Đỏ)</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    `;
+
+    for (let q = 0; q < p2Num; q++) {
+      const qNum = q + 1;
+      const qKey = String(qNum);
+      const subs = curKey.part2[qKey] || ["", "", "", ""];
+      const subLabels = ["a", "b", "c", "d"];
+
+      sheetHtml += `
+        <div class="p-3 rounded-lg border border-slate-200 bg-slate-50">
+          <div class="font-bold text-xs text-slate-700 mb-2 pb-1 border-b border-slate-200">
+            CÂU ${qNum}
+          </div>
+          <div class="space-y-1.5">
+            ${subLabels.map((sLabel, sIdx) => {
+              const val = subs[sIdx] || "";
+              return `
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-mono font-medium text-slate-600">${sLabel})</span>
+                  <div class="flex items-center space-x-1">
+                    <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'Đ')" class="bubble-tf ${val === 'Đ' ? 'selected-true' : ''}">
+                      Đ
+                    </button>
+                    <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'S')" class="bubble-tf ${val === 'S' ? 'selected-false' : ''}">
+                      S
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    }
+    sheetHtml += `</div></div>`;
+  }
+
+  if (p3Num > 0) {
+    sheetHtml += `
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between mb-2.5">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+            Phần III: Trả Lời Ngắn (${p3Num} câu - Điền số)
+          </h4>
+          <span class="text-[11px] text-slate-500">Nhập trực tiếp số</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+    `;
+
+    for (let q = 0; q < p3Num; q++) {
+      const qNum = q + 1;
+      const curAns = curKey.part3[q] || "";
+
+      sheetHtml += `
+        <div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50">
+          <label class="block font-bold text-[11px] text-slate-600 mb-1">CÂU ${qNum}</label>
+          <input type="text" value="${curAns}" onchange="setPart3Answer('${curMade}', ${q}, this.value)" placeholder="0.0" class="w-full py-1 px-2 rounded border border-slate-300 bg-white font-mono font-bold text-xs text-center text-slate-900 focus:outline-none focus:border-blue-600">
+        </div>
+      `;
+    }
+    sheetHtml += `</div></div>`;
+  }
+
+  sheetHtml += `</div>`;
+  container.innerHTML = sheetHtml;
+};
+
 // =========================================================================
-// === MODAL TẠO & CHỌN LOẠI PHIẾU CHẤM ===
+// === CAMERA & CHẤM BÀI ===
 // =========================================================================
 
-function showCreateExamModal() {
-  const modal = document.getElementById("createExamModal");
+let activeStream = null;
+let currentFacingMode = "environment";
+let autoScanTimer = null;
+let isAutoScanActive = false;
+let lastGradedSBD = "";
+let lastGradedTime = 0;
+
+async function initCamera() {
+  const video = document.getElementById("scannerVideo");
+  const statusEl = document.getElementById("cameraStatus");
+  if (!video) return;
+
+  if (activeStream) {
+    activeStream.getTracks().forEach(track => track.stop());
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (statusEl) statusEl.innerHTML = `<span class="text-rose-600">Trình duyệt không hỗ trợ mở Camera trực tiếp. Hãy dùng nút 'Tải ảnh từ máy'!</span>`;
+    return;
+  }
+
+  try {
+    const constraints = {
+      video: {
+        facingMode: { ideal: currentFacingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
+    };
+
+    activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = activeStream;
+    await video.play();
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1.5 animate-pulse"></span>Camera đang sẵn sàng`;
+    }
+  } catch (err) {
+    console.warn("Camera access failed:", err);
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-rose-600">Không thể mở camera (${err.name || "lỗi quyền"}). Hãy dùng nút "Tải ảnh từ máy"!</span>`;
+    }
+  }
+}
+
+window.switchCamera = function switchCamera() {
+  currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+  initCamera();
+};
+
+function doGrade(sourceElement) {
+  const exam = window.appState.getCurrentExam();
+  if (!exam) {
+    alert("Vui lòng tạo hoặc chọn một bài thi trước!");
+    return;
+  }
+
+  try {
+    const tStart = performance.now();
+    const gradeOutput = window.omrEngine.gradeFromImageSource(sourceElement, exam.config, exam.answerKeys);
+    const tEnd = performance.now();
+    const durationMs = Math.round(tEnd - tStart);
+
+    const res = gradeOutput.result;
+    const studentName = window.appState.findStudentName(res.sbd);
+
+    const resultRecord = {
+      id: "res_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+      examId: exam.id,
+      classId: exam.classId,
+      sbd: res.sbd,
+      studentName: studentName,
+      made: res.made,
+      part1_score: res.part1_score,
+      part2_score: res.part2_score,
+      part3_score: res.part3_score,
+      total_score: res.total_score,
+      part1_answers: res.part1_answers,
+      part2_answers: res.part2_answers,
+      part3_answers: res.part3_answers,
+      part1_correct: res.part1_correct,
+      part3_correct: res.part3_correct,
+      status: res.status,
+      timestamp: res.timestamp,
+      annotatedDataUrl: gradeOutput.annotatedDataUrl,
+      durationMs: durationMs
+    };
+
+    window.appState.addResult(resultRecord);
+    playBeep(true);
+
+    window.showResultModal(resultRecord);
+    renderResultsTable();
+
+    if (res.total_score >= 9.0 && typeof confetti === "function") {
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+    }
+  } catch (err) {
+    console.error("Grading failed:", err);
+    playBeep(false);
+    alert("Chưa nhận diện được phiếu thi! Vui lòng căn phiếu thi rõ ràng trong khung sáng và thử lại.");
+  }
+}
+
+window.captureAndGrade = function captureAndGrade() {
+  const video = document.getElementById("scannerVideo");
+  if (!video || !activeStream) {
+    alert("Camera chưa bật hoặc không khả dụng. Hãy dùng nút 'Tải ảnh từ máy'!");
+    return;
+  }
+  doGrade(video);
+};
+
+window.toggleAutoScan = function toggleAutoScan() {
+  isAutoScanActive = !isAutoScanActive;
+  const btn = document.getElementById("btnAutoScan");
+
+  if (isAutoScanActive) {
+    if (btn) {
+      btn.classList.remove("bg-slate-800", "text-slate-300");
+      btn.classList.add("bg-blue-600", "text-white");
+      btn.innerHTML = `⚡ Tự động: BẬT`;
+    }
+
+    autoScanTimer = setInterval(() => {
+      const video = document.getElementById("scannerVideo");
+      if (!video || video.readyState !== 4) return;
+
+      try {
+        const exam = window.appState.getCurrentExam();
+        const output = window.omrEngine.gradeFromImageSource(video, exam.config, exam.answerKeys);
+        const res = output.result;
+
+        const now = Date.now();
+        if (res.sbd && res.sbd !== "000000" && (res.sbd !== lastGradedSBD || now - lastGradedTime > 3000)) {
+          lastGradedSBD = res.sbd;
+          lastGradedTime = now;
+
+          const studentName = window.appState.findStudentName(res.sbd);
+          const resultRecord = {
+            id: "res_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+            examId: exam.id,
+            classId: exam.classId,
+            sbd: res.sbd,
+            studentName: studentName,
+            made: res.made,
+            part1_score: res.part1_score,
+            part2_score: res.part2_score,
+            part3_score: res.part3_score,
+            total_score: res.total_score,
+            part1_answers: res.part1_answers,
+            part2_answers: res.part2_answers,
+            part3_answers: res.part3_answers,
+            part1_correct: res.part1_correct,
+            part3_correct: res.part3_correct,
+            status: res.status,
+            timestamp: res.timestamp,
+            annotatedDataUrl: output.annotatedDataUrl
+          };
+
+          window.appState.addResult(resultRecord);
+          playBeep(true);
+          renderResultsTable();
+        }
+      } catch (e) {}
+    }, 1500);
+  } else {
+    clearInterval(autoScanTimer);
+    if (btn) {
+      btn.classList.remove("bg-blue-600", "text-white");
+      btn.classList.add("bg-slate-800", "text-slate-300");
+      btn.innerHTML = `⚡ Tự động: TẮT`;
+    }
+  }
+};
+
+window.handleFileUpload = function handleFileUpload(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => doGrade(img);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  event.target.value = "";
+};
+
+window.gradeSampleSheet = function gradeSampleSheet() {
+  const img = new Image();
+  img.onload = () => doGrade(img);
+  img.src = "samples/bai_thi_mau_101.png";
+};
+
+window.showResultModal = function showResultModal(record) {
+  const modal = document.getElementById("resultModal");
   if (!modal) return;
 
-  const select = document.getElementById("examSheetTypeSelect");
-  if (select) {
-    select.innerHTML = Object.entries(SHEET_TYPES).map(([k, v]) => `
-      <option value="${k}">${v.name} - ${v.desc}</option>
-    `).join("");
+  const sbdEl = document.getElementById("modalSbd");
+  const nameEl = document.getElementById("modalStudentName");
+  const madeEl = document.getElementById("modalMade");
+  const scoreEl = document.getElementById("modalTotalScore");
+  const p1El = document.getElementById("modalP1Score");
+  const p2El = document.getElementById("modalP2Score");
+  const p3El = document.getElementById("modalP3Score");
+  const imgEl = document.getElementById("modalPreviewImg");
+
+  if (sbdEl) sbdEl.innerText = record.sbd;
+  if (nameEl) nameEl.innerText = record.studentName;
+  if (madeEl) madeEl.innerText = record.made;
+
+  if (scoreEl) {
+    scoreEl.innerText = record.total_score.toFixed(2);
+    scoreEl.className = `text-4xl font-extrabold ${record.total_score >= 5.0 ? 'text-blue-700' : 'text-slate-800'}`;
   }
 
-  const classSelect = document.getElementById("examClassSelect");
-  if (classSelect) {
-    classSelect.innerHTML = appState.data.classes.map(c => `
-      <option value="${c.id}" ${c.id === appState.data.currentClassId ? 'selected' : ''}>${c.name}</option>
-    `).join("");
-  }
+  if (p1El) p1El.innerText = record.part1_score.toFixed(2) + " đ";
+  if (p2El) p2El.innerText = record.part2_score.toFixed(2) + " đ";
+  if (p3El) p3El.innerText = record.part3_score.toFixed(2) + " đ";
 
+  if (imgEl) imgEl.src = record.annotatedDataUrl;
   modal.classList.remove("hidden");
-}
+};
 
-function closeCreateExamModal() {
-  const modal = document.getElementById("createExamModal");
+window.closeResultModal = function closeResultModal() {
+  const modal = document.getElementById("resultModal");
   if (modal) modal.classList.add("hidden");
-}
-
-function saveNewExam() {
-  const nameInput = document.getElementById("newExamNameInput");
-  const sheetTypeSelect = document.getElementById("examSheetTypeSelect");
-  const classSelect = document.getElementById("examClassSelect");
-
-  const name = nameInput.value.trim() || "Bài thi mới";
-  const sheetTypeKey = sheetTypeSelect.value || "A4_TN2025_BGD_1239";
-  const classId = classSelect.value || appState.data.currentClassId;
-
-  const sheetDef = SHEET_TYPES[sheetTypeKey];
-
-  const newExam = {
-    id: "exam_" + Date.now(),
-    classId: classId,
-    name: name,
-    sheet_type: sheetTypeKey,
-    date: new Date().toISOString().split("T")[0],
-    config: {
-      p1_num: sheetDef.p1_num,
-      p2_num: sheetDef.p2_num,
-      p3_num: sheetDef.p3_num,
-      p1_score: sheetDef.p1_score,
-      p3_score: sheetDef.p3_score
-    },
-    answerKeys: {
-      "101": createDefaultKey(sheetDef)
-    }
-  };
-
-  appState.data.exams.push(newExam);
-  appState.data.currentExamId = newExam.id;
-  appState.data.activeMade = "101";
-  appState.save();
-
-  updateExamSelect();
-  renderVisualAnswerSheet();
-  closeCreateExamModal();
-  alert(`Đã tạo bài thi "${name}" với loại phiếu [${sheetDef.name}]!`);
-}
+};
 
 // =========================================================================
-// === XUẤT FILE EXCEL KẾT QUẢ ĐA TRANG ===
+// === XUẤT FILE EXCEL & QUẢN LÝ KẾT QUẢ ===
 // =========================================================================
 
-function exportResultsToExcel() {
-  const exam = appState.getCurrentExam();
-  const cls = appState.getCurrentClass();
-  const results = appState.data.results.filter(r => r.examId === exam.id);
+window.exportResultsToExcel = function exportResultsToExcel() {
+  if (typeof XLSX === "undefined") {
+    alert("Thư viện SheetJS chưa sẵn sàng!");
+    return;
+  }
+  const exam = window.appState.getCurrentExam();
+  const cls = window.appState.getCurrentClass();
+  const results = window.appState.data.results.filter(r => r.examId === exam.id);
 
   if (results.length === 0) {
     alert("Chưa có kết quả nào để xuất Excel!");
@@ -1104,7 +1155,7 @@ function exportResultsToExcel() {
 
   const summaryRows = [
     ["BẢNG TỔNG HỢP KẾT QUẢ CHẤM THI TRẮC NGHIỆM - CHUẨN BỘ GIÁO DỤC 2025"],
-    [`Bài thi: ${exam.name}`, "", `Loại phiếu: ${SHEET_TYPES[exam.sheet_type]?.name || exam.sheet_type}`, "", `Lớp: ${cls.name}`, "", `Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
+    [`Bài thi: ${exam.name}`, "", `Loại phiếu: ${window.SHEET_TYPES[exam.sheet_type]?.name || exam.sheet_type}`, "", `Lớp: ${cls.name}`, "", `Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
     [],
     ["STT", "Số Báo Danh", "Họ và Tên Học Sinh", "Mã Đề", "Điểm P.I", "Điểm P.II", "Điểm P.III", "TỔNG ĐIỂM", "Xếp Loại", "Thời Gian Chấm"]
   ];
@@ -1163,18 +1214,14 @@ function exportResultsToExcel() {
 
   const filename = `Bang_Diem_${exam.name.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.xlsx`;
   XLSX.writeFile(wb, filename);
-}
+};
 
-// =========================================================================
-// === RENDER THƯ VIỆN 12 MẪU PHIẾU CHUẨN TỪ APP QM GỐC ===
-// =========================================================================
-
-function renderTemplateGallery() {
+window.renderTemplateGallery = function renderTemplateGallery() {
   const container = document.getElementById("templateGalleryContainer");
-  if (!container) return;
+  if (!container || !window.SHEET_TYPES) return;
 
   let html = "";
-  Object.entries(SHEET_TYPES).forEach(([key, item]) => {
+  Object.entries(window.SHEET_TYPES).forEach(([key, item]) => {
     html += `
       <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
         <div>
@@ -1194,17 +1241,16 @@ function renderTemplateGallery() {
     `;
   });
   container.innerHTML = html;
-}
+};
 
 // =========================================================================
-// === RENDER GIAO DIỆN & TABS (HỖ TRỢ MOBILE DEDICATED MENU) ===
+// === ĐIỀU HƯỚNG TABS & MOBILE BOTTOM BAR ===
 // =========================================================================
 
-function switchTab(tabName) {
-  appState.data.currentTab = tabName;
+window.switchTab = function switchTab(tabName) {
+  window.appState.data.currentTab = tabName;
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
 
-  // Desktop tab header
   document.querySelectorAll(".tab-btn").forEach(el => {
     el.classList.remove("text-blue-700", "border-blue-700", "font-bold");
     el.classList.add("text-slate-500", "border-transparent", "font-medium");
@@ -1215,7 +1261,6 @@ function switchTab(tabName) {
     targetBtn.classList.add("text-blue-700", "border-blue-700", "font-bold");
   }
 
-  // Mobile Bottom Navigation Bar
   document.querySelectorAll(".mobile-nav-item").forEach(el => el.classList.remove("active"));
   const mobileBtn = document.getElementById(`mobileNavBtn_${tabName}`);
   if (mobileBtn) mobileBtn.classList.add("active");
@@ -1231,17 +1276,17 @@ function switchTab(tabName) {
   }
 
   if (tabName === "exams") {
-    renderVisualAnswerSheet();
+    window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
   } else if (tabName === "results") {
     renderResultsTable();
   } else if (tabName === "templates") {
-    renderTemplateGallery();
+    window.renderTemplateGallery && window.renderTemplateGallery();
   }
-}
+};
 
 function renderResultsTable() {
-  const exam = appState.getCurrentExam();
-  const results = appState.data.results.filter(r => r.examId === exam.id);
+  const exam = window.appState.getCurrentExam();
+  const results = window.appState.data.results.filter(r => r.examId === exam.id);
   const tbody = document.getElementById("resultsTableBody");
   const statsContainer = document.getElementById("resultsStats");
   if (!tbody) return;
@@ -1305,48 +1350,48 @@ function renderResultsTable() {
   tbody.innerHTML = html;
 }
 
-function previewGradedImage(id) {
-  const r = appState.data.results.find(item => item.id === id);
-  if (r) showResultModal(r);
-}
+window.previewGradedImage = function previewGradedImage(id) {
+  const r = window.appState.data.results.find(item => item.id === id);
+  if (r) window.showResultModal(r);
+};
 
-function deleteSingleResult(id) {
+window.deleteSingleResult = function deleteSingleResult(id) {
   if (confirm("Bạn có chắc chắn muốn xóa kết quả bài thi này?")) {
-    appState.deleteResult(id);
+    window.appState.deleteResult(id);
     renderResultsTable();
   }
-}
+};
 
-function clearAllResults() {
+window.clearAllResults = function clearAllResults() {
   if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa toàn bộ kết quả chấm của bài thi này?")) {
-    appState.clearResults();
+    window.appState.clearResults();
     renderResultsTable();
   }
-}
+};
 
-function updateExamSelect() {
+window.updateExamSelect = function updateExamSelect() {
   const select = document.getElementById("headerExamSelect");
   if (!select) return;
-  select.innerHTML = appState.data.exams.map(e => `
-    <option value="${e.id}" ${e.id === appState.data.currentExamId ? 'selected' : ''}>
+  select.innerHTML = window.appState.data.exams.map(e => `
+    <option value="${e.id}" ${e.id === window.appState.data.currentExamId ? 'selected' : ''}>
       ${e.name}
     </option>
   `).join("");
-}
+};
 
-function onExamChange(examId) {
-  appState.data.currentExamId = examId;
-  const exam = appState.getCurrentExam();
+window.onExamChange = function onExamChange(examId) {
+  window.appState.data.currentExamId = examId;
+  const exam = window.appState.getCurrentExam();
   if (exam && exam.answerKeys) {
-    appState.data.activeMade = Object.keys(exam.answerKeys)[0] || "101";
+    window.appState.data.activeMade = Object.keys(exam.answerKeys)[0] || "101";
   }
-  appState.save();
-  renderVisualAnswerSheet();
+  window.appState.save();
+  window.renderVisualAnswerSheet && window.renderVisualAnswerSheet();
   renderResultsTable();
-}
+};
 
-function renderStudentsList() {
-  const cls = appState.getCurrentClass();
+window.renderStudentsList = function renderStudentsList() {
+  const cls = window.appState.getCurrentClass();
   const tbody = document.getElementById("studentsTableBody");
   if (!tbody || !cls) return;
 
@@ -1364,21 +1409,21 @@ function renderStudentsList() {
     `;
   });
   tbody.innerHTML = html;
-}
+};
 
-function removeStudent(sbd) {
-  const cls = appState.getCurrentClass();
+window.removeStudent = function removeStudent(sbd) {
+  const cls = window.appState.getCurrentClass();
   cls.students = cls.students.filter(s => s.sbd !== sbd);
-  appState.save();
-  renderStudentsList();
-}
+  window.appState.save();
+  window.renderStudentsList();
+};
 
-function showImportStudentsModal() {
+window.showImportStudentsModal = function showImportStudentsModal() {
   const text = prompt("Dán danh sách học sinh (Mỗi dòng một học sinh: SBD [dấu cách] Tên):\nVí dụ:\n000101 Nguyễn Văn A\n000102 Trần Thị B");
   if (!text) return;
 
   const lines = text.trim().split("\n");
-  const cls = appState.getCurrentClass();
+  const cls = window.appState.getCurrentClass();
   lines.forEach(line => {
     const parts = line.trim().split(/\s+/);
     if (parts.length >= 2) {
@@ -1389,50 +1434,15 @@ function showImportStudentsModal() {
       }
     }
   });
-  appState.save();
-  renderStudentsList();
+  window.appState.save();
+  window.renderStudentsList();
   alert("Đã cập nhật danh sách học sinh!");
-}
+};
 
-// BIND TOÀN BỘ HÀM VÀO WINDOW ĐỂ TRÁNH LỖI SCOPE KHI GỌI TỪ HTML ONCLICK
-window.switchTab = switchTab;
-window.showCreateExamModal = showCreateExamModal;
-window.closeCreateExamModal = closeCreateExamModal;
-window.saveNewExam = saveNewExam;
-window.triggerExcelKeyUpload = triggerExcelKeyUpload;
-window.handleExcelKeyUpload = handleExcelKeyUpload;
-window.downloadExcelKeyTemplate = downloadExcelKeyTemplate;
-window.openQRScannerModal = openQRScannerModal;
-window.closeQRScannerModal = closeQRScannerModal;
-window.handleQRImageUpload = handleQRImageUpload;
-window.showQRCodeShareModal = showQRCodeShareModal;
-window.closeQRShareModal = closeQRShareModal;
-window.showResultModal = showResultModal;
-window.closeResultModal = closeResultModal;
-window.exportResultsToExcel = exportResultsToExcel;
-window.captureAndGrade = captureAndGrade;
-window.toggleAutoScan = toggleAutoScan;
-window.switchCamera = switchCamera;
-window.handleFileUpload = handleFileUpload;
-window.gradeSampleSheet = gradeSampleSheet;
-window.renderVisualAnswerSheet = renderVisualAnswerSheet;
-window.setPart1Answer = setPart1Answer;
-window.setPart2Answer = setPart2Answer;
-window.setPart3Answer = setPart3Answer;
-window.addNewMadePrompt = addNewMadePrompt;
-window.deleteCurrentMade = deleteCurrentMade;
-window.quickTextPastePrompt = quickTextPastePrompt;
-window.selectActiveMade = selectActiveMade;
-window.onExamChange = onExamChange;
-window.renderStudentsList = renderStudentsList;
-window.removeStudent = removeStudent;
-window.showImportStudentsModal = showImportStudentsModal;
-window.renderTemplateGallery = renderTemplateGallery;
-
-// Khởi tạo ứng dụng
+// Khởi chạy khi tài liệu sẵn sàng
 window.addEventListener("DOMContentLoaded", () => {
-  updateExamSelect();
-  renderStudentsList();
-  renderTemplateGallery();
-  switchTab(appState.data.currentTab || "scan");
+  window.updateExamSelect && window.updateExamSelect();
+  window.renderStudentsList && window.renderStudentsList();
+  window.renderTemplateGallery && window.renderTemplateGallery();
+  window.switchTab && window.switchTab(window.appState.data.currentTab || "scan");
 });
