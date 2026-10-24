@@ -255,14 +255,14 @@ html.dark footer {
 .scanner-viewport {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 500px;
   margin: 0 auto;
   aspect-ratio: 7 / 10;
   overflow: hidden;
-  border-radius: 1rem;
-  background-color: #090d16;
-  box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.45);
-  border: 2px solid #334155;
+  border-radius: 1.25rem;
+  background-color: #050811;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .scanner-video {
@@ -280,53 +280,54 @@ html.dark footer {
   justify-content: center;
 }
 
-/* Khung tỷ lệ 7:10 bên trong viewfinder */
+/* Khung ngắm rộng rãi (95% x 95%) giúp camera bao trọn cả phiếu A4 mà không cần nhấc cao */
 .scanner-reticle {
   position: relative;
-  width: 88%;
-  height: 90%;
-  border: 1.5px dashed rgba(255, 255, 255, 0.35);
-  border-radius: 4px;
-  box-shadow: 0 0 0 9999px rgba(9, 13, 22, 0.58);
+  width: 95%;
+  height: 95%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(5, 8, 17, 0.52);
 }
 
-/* 4 Ô VUÔNG ĐỊNH VỊ GÓC PHIẾU MÀU XANH LÁ CHUẨN `CornerSquaresOverlayUnt2025` (#00FF00) */
+/* 4 Ô VUÔNG ĐỊNH VỊ GÓC PHIẾU MÀU XANH LÁ CHUẨN QM (#00FF00) */
 .qm-corner-square {
   position: absolute;
-  width: 16%;
+  width: 15%;
   aspect-ratio: 1 / 1;
-  border: 3.5px solid #00ff00;
-  background-color: rgba(0, 255, 0, 0.06);
+  border: 3px solid #00ff00;
+  border-radius: 4px;
+  background-color: rgba(0, 255, 0, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.35), inset 0 0 6px rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.4), inset 0 0 6px rgba(0, 255, 0, 0.2);
 }
 
 /* Tâm chữ thập nhỏ bên trong mỗi ô định vị góc */
-.qm-corner-square::after {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background-color: rgba(0, 255, 0, 0.45);
+.qm-corner-plus {
+  font-size: 14px;
+  font-weight: 900;
+  color: rgba(0, 255, 0, 0.7);
+  line-height: 1;
+  pointer-events: none;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
-/* Khi thuật toán findAnchorInSubImage bắt trúng ô đen ở góc */
+/* Khi thuật toán khóa trúng ô đen ở góc phiếu */
 .qm-corner-square.locked {
   border-color: #00ff00;
   border-width: 4px;
-  background-color: rgba(0, 255, 0, 0.28);
-  box-shadow: 0 0 16px rgba(0, 255, 0, 0.85), inset 0 0 10px rgba(0, 255, 0, 0.5);
-  transform: scale(1.03);
+  background-color: rgba(0, 255, 0, 0.32);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.95), inset 0 0 12px rgba(0, 255, 0, 0.6);
+  transform: scale(1.05);
 }
-.qm-corner-square.locked::after {
-  width: 12px;
-  height: 12px;
-  background-color: #00ff00;
-  box-shadow: 0 0 8px #ffffff;
+.qm-corner-square.locked .qm-corner-plus {
+  color: #ffffff;
+  text-shadow: 0 0 6px #00ff00;
+  transform: scale(1.2);
 }
 
 .qm-corner-tl { top: 0; left: 0; }
@@ -334,30 +335,41 @@ html.dark footer {
 .qm-corner-br { bottom: 0; right: 0; }
 .qm-corner-bl { bottom: 0; left: 0; }
 
-/* Các ô định vị nội bộ mô phỏng dọc thân phiếu */
-.qm-internal-guide {
-  position: absolute;
-  left: 4%;
-  right: 4%;
-  border-top: 1px dashed rgba(0, 255, 0, 0.28);
-  pointer-events: none;
+/* Nút chụp Shutter Button phong cách Camera hiện đại */
+.shutter-button {
+  width: 62px;
+  height: 62px;
+  border-radius: 9999px;
+  border: 3.5px solid #ffffff;
+  padding: 3px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
-
-/* Tia quét thanh lịch */
-.scanner-laser {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #00ff00, transparent);
-  box-shadow: 0 0 10px #00ff00;
-  animation: scanLaser 2.4s ease-in-out infinite alternate;
+.shutter-button:hover {
+  transform: scale(1.04);
 }
-
-@keyframes scanLaser {
-  0% { top: 8%; opacity: 0.35; }
-  50% { opacity: 0.85; }
-  100% { top: 90%; opacity: 0.35; }
+.shutter-button:active {
+  transform: scale(0.92);
+}
+.shutter-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.15s ease;
+}
+.shutter-button:hover .shutter-inner {
+  background: #f1f5f9;
+}
+.shutter-button:active .shutter-inner {
+  background: #cbd5e1;
+}
 }
 
 /* Hiệu ứng chớp trắng `v_flash` khi khóa ảnh thành công */

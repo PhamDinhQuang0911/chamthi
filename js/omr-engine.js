@@ -235,24 +235,33 @@ class OMREngine {
   }
 
   /**
-   * Thuật toán `findAnchorInSubImage` & `detectFourCornerInOverlay` từ QM APK:
-   * Dò tìm 4 ô vuông đen định vị góc trong 4 khung vuông xanh lá (CornerSquaresOverlay)
-   * Trả về cả tọa độ 4 góc và trạng thái khóa từng góc [TL, TR, BR, BL]
+   * Thuật toán `findAnchorInSubImage` & `detectFourCornerInOverlay` nâng cao:
+   * Dò tìm 4 ô vuông đen định vị góc của phiếu thi, hỗ trợ Video Frame, Canvas, Image
+   * Chống nhiễu nền tối và kiểm tra tính hợp lệ hình học của khổ giấy A4
    */
   detectCornerMarkersWithStatus(canvas) {
-    const w = canvas.width;
-    const h = canvas.height;
+    const w = canvas.videoWidth || canvas.naturalWidth || canvas.width || 0;
+    const h = canvas.videoHeight || canvas.naturalHeight || canvas.height || 0;
 
     const defaultPts = [
       [0, 0],
-      [w - 1, 0],
-      [w - 1, h - 1],
-      [0, h - 1]
+      [Math.max(1, w - 1), 0],
+      [Math.max(1, w - 1), Math.max(1, h - 1)],
+      [0, Math.max(1, h - 1)]
     ];
 
-    const scanScale = Math.min(1.0, 500 / Math.max(w, h));
-    const sw = Math.max(60, Math.floor(w * scanScale));
-    const sh = Math.max(80, Math.floor(h * scanScale));
+    if (!w || !h) {
+      return {
+        points: defaultPts,
+        cornerStatus: [false, false, false, false],
+        lockedCount: 0,
+        isExact: false
+      };
+    }
+
+    const scanScale = Math.min(1.0, 520 / Math.max(w, h));
+    const sw = Math.max(80, Math.floor(w * scanScale));
+    const sh = Math.max(100, Math.floor(h * scanScale));
 
     const smallCanvas = document.createElement("canvas");
     smallCanvas.width = sw;
@@ -261,74 +270,158 @@ class OMREngine {
     sctx.drawImage(canvas, 0, 0, sw, sh);
     const sData = sctx.getImageData(0, 0, sw, sh).data;
 
-    // Tìm ô định vị đen trong vùng góc (Tương đương findAnchorInSubImage của QM APK)
-    // Kiểm tra mật độ điểm đen và tỷ lệ khung bao tương đương hình vuông (0.65 <= w/h <= 1.45)
-    const findCornerAnchor = (minX, maxX, minY, maxY, cornerIdx) => {
-      let minLum = 255;
-      let maxLum = 0;
+    // Chuyển sang ảnh xám Grayscale & tính min, max độ sáng
+    const gray = new Uint8Array(sw * sh);
+    let minLumAll = 255, maxLumAll = 0, sumLumAll = 0;
+    for (let i = 0, p = 0; i < sData.length; i += 4, p++) {
+      const g = (sData[i] * 0.299 + sData[i + 1] * 0.587 + sData[i + 2] * 0.114) | 0;
+      gray[p] = g;
+      sumLumAll += g;
+      if (g < minLumAll) minLumAll = g;
+      if (g > maxLumAll) maxLumAll = g;
+    }
 
+    // Độ tương phản toàn ảnh quá thấp thì bỏ qua
+    if (maxLumAll - minLumAll < 30) {
+      return { points: defaultPts, cornerStatus: [false, false, false, false], lockedCount: 0, isExact: false };
+    }
+
+    const avgLumAll = sumLumAll / (sw * sh);
+
+    /**
+     * Dò tìm ô vuông đen định vị trong 1 góc (minX..maxX, minY..maxY)
+     * Sử dụng phân tích blob đen đặc được bao quanh bởi viền giấy trắng
+     */
+    const findCornerAnchor = (minX, maxX, minY, maxY, cornerIdx) => {
+      let localMin = 255, localMax = 0;
       for (let y = minY; y < maxY; y++) {
+        const row = y * sw;
         for (let x = minX; x < maxX; x++) {
-          const idx = (y * sw + x) * 4;
-          const lum = sData[idx] * 0.299 + sData[idx + 1] * 0.587 + sData[idx + 2] * 0.114;
-          if (lum < minLum) minLum = lum;
-          if (lum > maxLum) maxLum = lum;
+          const v = gray[row + x];
+          if (v < localMin) localMin = v;
+          if (v > localMax) localMax = v;
         }
       }
 
-      // Cần có độ tương phản tối thiểu giữa giấy trắng và ô định vị đen
-      if (maxLum - minLum < 35) return null;
+      // Cần có độ tương phản cục bộ rõ rệt
+      if (localMax - localMin < 35) return null;
 
-      const darkThresh = Math.min(105, minLum + (maxLum - minLum) * 0.32);
-      let sumX = 0, sumY = 0, count = 0;
-      let bx0 = maxX, bx1 = minX, by0 = maxY, by1 = minY;
+      // Ngưỡng điểm đen: nằm ở 35% dải sáng cục bộ
+      const darkThresh = Math.min(118, localMin + (localMax - localMin) * 0.35);
 
-      for (let y = minY; y < maxY; y++) {
-        for (let x = minX; x < maxX; x++) {
-          const idx = (y * sw + x) * 4;
-          const lum = sData[idx] * 0.299 + sData[idx + 1] * 0.587 + sData[idx + 2] * 0.114;
-          if (lum <= darkThresh) {
-            sumX += x;
-            sumY += y;
+      const visited = new Uint8Array(sw * sh);
+      let bestCandidate = null;
+      let bestScore = -Infinity;
+
+      const minDim = Math.max(3, Math.floor(Math.min(sw, sh) * 0.015));
+      const maxDim = Math.max(12, Math.floor(Math.min(sw, sh) * 0.10));
+      const minArea = minDim * minDim * 0.40;
+      const maxArea = maxDim * maxDim * 1.50;
+
+      // Quét tìm các blob điểm đen trong góc
+      for (let y = minY; y < maxY; y += 2) {
+        const row = y * sw;
+        for (let x = minX; x < maxX; x += 2) {
+          const idx = row + x;
+          if (visited[idx] || gray[idx] > darkThresh) continue;
+
+          // Flood-fill BFS gom nhóm điểm đen
+          let count = 0, sumX = 0, sumY = 0;
+          let bx0 = x, bx1 = x, by0 = y, by1 = y;
+          const queue = [idx];
+          visited[idx] = 1;
+
+          let qHead = 0;
+          while (qHead < queue.length && queue.length < 2400) {
+            const curr = queue[qHead++];
+            const cy = (curr / sw) | 0;
+            const cx = curr % sw;
             count++;
-            if (x < bx0) bx0 = x;
-            if (x > bx1) bx1 = x;
-            if (y < by0) by0 = y;
-            if (y > by1) by1 = y;
+            sumX += cx;
+            sumY += cy;
+            if (cx < bx0) bx0 = cx;
+            if (cx > bx1) bx1 = cx;
+            if (cy < by0) by0 = cy;
+            if (cy > by1) by1 = cy;
+
+            const neighbors = [curr - 1, curr + 1, curr - sw, curr + sw];
+            for (let k = 0; k < 4; k++) {
+              const n = neighbors[k];
+              const ny = (n / sw) | 0;
+              const nx = n % sw;
+              if (nx >= minX && nx < maxX && ny >= minY && ny < maxY && !visited[n]) {
+                visited[n] = 1;
+                if (gray[n] <= darkThresh) {
+                  queue.push(n);
+                }
+              }
+            }
+          }
+
+          if (count < minArea || count > maxArea) continue;
+
+          const bw = bx1 - bx0 + 1;
+          const bh = by1 - by0 + 1;
+          if (bw < minDim || bh < minDim || bw > maxDim || bh > maxDim) continue;
+
+          const aspect = bw / bh;
+          if (aspect < 0.60 || aspect > 1.55) continue;
+
+          const solidity = count / (bw * bh);
+          if (solidity < 0.42) continue;
+
+          // Kiểm tra viền sáng bao quanh ô đen (chống nhầm cạnh bàn tối / bóng đổ)
+          const pad = Math.max(2, Math.floor(Math.min(bw, bh) * 0.4));
+          let surroundSum = 0, surroundCount = 0;
+          for (let sy = Math.max(minY, by0 - pad); sy <= Math.min(maxY - 1, by1 + pad); sy++) {
+            const srow = sy * sw;
+            for (let sx = Math.max(minX, bx0 - pad); sx <= Math.min(maxX - 1, bx1 + pad); sx++) {
+              if (sx >= bx0 && sx <= bx1 && sy >= by0 && sy <= by1) continue;
+              surroundSum += gray[srow + sx];
+              surroundCount++;
+            }
+          }
+          const avgSurround = surroundCount > 0 ? (surroundSum / surroundCount) : localMax;
+          if (avgSurround - localMin < 25) continue; // Phải có viền trắng sáng hơn lõi đen
+
+          const cx = sumX / count;
+          const cy = sumY / count;
+
+          // Ưu tiên blob nằm gần góc ngoài nhất của tờ giấy
+          let cornerDistNorm = 0;
+          if (cornerIdx === 0) cornerDistNorm = (cx / sw) + (cy / sh);
+          else if (cornerIdx === 1) cornerDistNorm = ((sw - cx) / sw) + (cy / sh);
+          else if (cornerIdx === 2) cornerDistNorm = ((sw - cx) / sw) + ((sh - cy) / sh);
+          else if (cornerIdx === 3) cornerDistNorm = (cx / sw) + ((sh - cy) / sh);
+
+          const squareScore = 1.0 - Math.abs(1.0 - aspect);
+          // Ưu tiên ô vuông góc chính (có diện tích lớn hơn các ô định vị phụ)
+          const areaScore = Math.min(2.5, count / 20.0);
+          const score = areaScore * 2.5 + squareScore * 2.0 + solidity * 2.0 - cornerDistNorm * 1.5;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = {
+              point: [cx / scanScale, cy / scanScale],
+              rect: {
+                x: bx0 / scanScale,
+                y: by0 / scanScale,
+                w: bw / scanScale,
+                h: bh / scanScale
+              },
+              count
+            };
           }
         }
       }
 
-      const regionArea = (maxX - minX) * (maxY - minY);
-      if (count < 16 || count > regionArea * 0.25) return null;
-
-      const bw = Math.max(1, bx1 - bx0 + 1);
-      const bh = Math.max(1, by1 - by0 + 1);
-      const aspect = bw / bh;
-      const solidity = count / (bw * bh);
-
-      // Chuẩn findAnchorInSubImage của QM APK:
-      // Ô vuông định vị đen đặc phải có tỷ lệ gần vuông (0.65..1.45) và độ đặc (solidity) >= 0.48
-      if (aspect < 0.65 || aspect > 1.45 || solidity < 0.48) return null;
-
-      const cx = (sumX / count) / scanScale;
-      const cy = (sumY / count) / scanScale;
-
-      return {
-        point: [cx, cy],
-        rect: {
-          x: bx0 / scanScale,
-          y: by0 / scanScale,
-          w: bw / scanScale,
-          h: bh / scanScale
-        },
-        count
-      };
+      return bestCandidate;
     };
 
-    // Vùng 4 ô vuông góc chuẩn CornerSquaresOverlayUnt2025 (24% mỗi góc)
-    const cw = Math.floor(sw * 0.24);
-    const ch = Math.floor(sh * 0.22);
+    // Vùng tìm kiếm: mở rộng lên 36% chiều rộng và 34% chiều cao mỗi góc
+    // Giúp bắt trúng ô đen ngay cả khi phiếu để gần camera (phiếu to) hoặc hơi lệch
+    const cw = Math.floor(sw * 0.36);
+    const ch = Math.floor(sh * 0.34);
 
     const tlObj = findCornerAnchor(0, cw, 0, ch, 0);
     const trObj = findCornerAnchor(sw - cw, sw, 0, ch, 1);
@@ -336,21 +429,63 @@ class OMREngine {
     const blObj = findCornerAnchor(0, cw, sh - ch, sh, 3);
 
     const cornerStatus = [!!tlObj, !!trObj, !!brObj, !!blObj];
-    const lockedCount = cornerStatus.filter(Boolean).length;
+    const rawLockedCount = cornerStatus.filter(Boolean).length;
 
-    if (lockedCount === 4) {
+    // Kiểm tra tính hợp lệ hình học của tứ giác (A4 Geometric Sanity Check)
+    let isQuadValid = false;
+    if (rawLockedCount === 4) {
+      const pTL = tlObj.point;
+      const pTR = trObj.point;
+      const pBR = brObj.point;
+      const pBL = blObj.point;
+
+      const topW = Math.hypot(pTR[0] - pTL[0], pTR[1] - pTL[1]);
+      const botW = Math.hypot(pBR[0] - pBL[0], pBR[1] - pBL[1]);
+      const leftH = Math.hypot(pBL[0] - pTL[0], pBL[1] - pTL[1]);
+      const rightH = Math.hypot(pBR[0] - pTR[0], pBR[1] - pTR[1]);
+
+      const avgW = (topW + botW) / 2;
+      const avgH = (leftH + rightH) / 2;
+      const aspectRatio = avgH / Math.max(1, avgW);
+
+      const wRatio = Math.min(topW, botW) / Math.max(topW, botW);
+      const hRatio = Math.min(leftH, rightH) / Math.max(leftH, rightH);
+
+      // Khổ A4 chuẩn là ~1.414. Chấp nhận dải góc nhìn nghiêng từ 1.05 đến 1.80
+      if (wRatio > 0.50 && hRatio > 0.50 && aspectRatio >= 1.05 && aspectRatio <= 1.80) {
+        isQuadValid = true;
+      }
+    }
+
+    if (rawLockedCount === 4 && isQuadValid) {
       return {
         points: [tlObj.point, trObj.point, brObj.point, blObj.point],
-        cornerStatus,
+        cornerStatus: [true, true, true, true],
+        lockedCount: 4,
+        isExact: true
+      };
+    }
+
+    // Nếu ảnh là ảnh mẫu đã nắn phẳng sẵn (kích thước chuẩn 1200x1700 hoặc tỷ lệ chuẩn ~1.41)
+    const isWarpedSheet = (w === 1200 && h === 1700) || (Math.abs(h / w - 1.416) < 0.04 && !canvas.videoWidth);
+    if (isWarpedSheet) {
+      return {
+        points: defaultPts,
+        cornerStatus: [true, true, true, true],
         lockedCount: 4,
         isExact: true
       };
     }
 
     return {
-      points: defaultPts,
+      points: [
+        tlObj ? tlObj.point : defaultPts[0],
+        trObj ? trObj.point : defaultPts[1],
+        brObj ? brObj.point : defaultPts[2],
+        blObj ? blObj.point : defaultPts[3]
+      ],
       cornerStatus,
-      lockedCount,
+      lockedCount: isQuadValid ? 4 : Math.min(3, rawLockedCount),
       isExact: false
     };
   }
@@ -363,29 +498,10 @@ class OMREngine {
    * Kiểm tra nhanh 4 ô góc trên Video Camera trực tiếp (Phục vụ hiệu ứng khóa góc xanh lá như App QM)
    */
   checkVideoFrameCorners(video) {
-    if (!video || video.readyState < 2 || !video.videoWidth) {
-      return { cornerStatus: [false, false, false, false], lockedCount: 0 };
+    if (!video || video.readyState < 2) {
+      return { cornerStatus: [false, false, false, false], lockedCount: 0, points: null };
     }
-    const tempCanvas = document.createElement("canvas");
-    // Crop theo khung ngắm 7:10 ở giữa video giống cropBitmapToViewFinder của QM APK
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    const targetAspect = 1.0 / 1.38;
-    let cropW = vw;
-    let cropH = vw / targetAspect;
-    if (cropH > vh) {
-      cropH = vh;
-      cropW = vh * targetAspect;
-    }
-    const sx = (vw - cropW) / 2;
-    const sy = (vh - cropH) / 2;
-
-    tempCanvas.width = 280;
-    tempCanvas.height = 386;
-    const ctx = tempCanvas.getContext("2d");
-    ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, tempCanvas.width, tempCanvas.height);
-
-    return this.detectCornerMarkersWithStatus(tempCanvas);
+    return this.detectCornerMarkersWithStatus(video);
   }
 
   /**
@@ -1240,14 +1356,28 @@ class OMREngine {
 
   /**
    * Chấm điểm từ bất kỳ nguồn nào (Image, Video Frame, hoặc Canvas)
+   * Tự động phát hiện 4 ô định vị góc toàn khung hình (Full-Frame) để đạt góc nhìn rộng tối đa
    */
   gradeFromImageSource(source, config, answerKeys, manualQuad = null) {
-    const tempCanvas = document.createElement("canvas");
-    const sw = source.videoWidth || source.naturalWidth || source.width;
-    const sh = source.videoHeight || source.naturalHeight || source.height;
+    const sw = source.videoWidth || source.naturalWidth || source.width || 1200;
+    const sh = source.videoHeight || source.naturalHeight || source.height || 1700;
 
-    // Nếu nguồn là Video, cắt theo tỷ lệ khung ngắm 7:10 giống cropBitmapToViewFinder của QM APK
-    if (source.videoWidth && source.videoHeight && !manualQuad) {
+    const fullCanvas = document.createElement("canvas");
+    fullCanvas.width = sw;
+    fullCanvas.height = sh;
+    const fctx = fullCanvas.getContext("2d");
+    fctx.drawImage(source, 0, 0, sw, sh);
+
+    // 1. Thử dò 4 ô vuông định vị góc trên toàn bộ ảnh (không crop) để giữ góc rộng tối đa
+    let cornerInfo = manualQuad
+      ? { points: manualQuad, cornerStatus: [true, true, true, true], lockedCount: 4, isExact: true }
+      : this.detectCornerMarkersWithStatus(fullCanvas);
+
+    let baseCanvas = fullCanvas;
+
+    // 2. Nếu chưa bắt đủ 4 góc trên toàn ảnh (ví dụ khi người dùng chụp thủ công lúc thiếu sáng),
+    // thử fallback dò trên vùng trung tâm 1:1.38
+    if (cornerInfo.lockedCount < 4 && !manualQuad) {
       const targetAspect = 1.0 / 1.38;
       let cropW = sw;
       let cropH = sw / targetAspect;
@@ -1257,24 +1387,21 @@ class OMREngine {
       }
       const sx = (sw - cropW) / 2;
       const sy = (sh - cropH) / 2;
-      tempCanvas.width = Math.round(cropW);
-      tempCanvas.height = Math.round(cropH);
-      const tctx = tempCanvas.getContext("2d");
-      tctx.drawImage(source, sx, sy, cropW, cropH, 0, 0, tempCanvas.width, tempCanvas.height);
-    } else {
-      tempCanvas.width = sw;
-      tempCanvas.height = sh;
-      const tctx = tempCanvas.getContext("2d");
-      tctx.drawImage(source, 0, 0, sw, sh);
+      const cropCanvas = document.createElement("canvas");
+      cropCanvas.width = Math.round(cropW);
+      cropCanvas.height = Math.round(cropH);
+      const cctx = cropCanvas.getContext("2d");
+      cctx.drawImage(source, sx, sy, cropW, cropH, 0, 0, cropCanvas.width, cropCanvas.height);
+
+      const fallbackInfo = this.detectCornerMarkersWithStatus(cropCanvas);
+      if (fallbackInfo.lockedCount > cornerInfo.lockedCount) {
+        cornerInfo = fallbackInfo;
+        baseCanvas = cropCanvas;
+      }
     }
 
-    // Dò 4 ô vuông định vị góc
-    const cornerInfo = manualQuad
-      ? { points: manualQuad, cornerStatus: [true, true, true, true], lockedCount: 4, isExact: true }
-      : this.detectCornerMarkersWithStatus(tempCanvas);
-
     // Nắn thẳng phối cảnh về chuẩn 1200x1700
-    const warpedCanvas = this.warpPerspective(tempCanvas, cornerInfo.points, this.TARGET_W, this.TARGET_H);
+    const warpedCanvas = this.warpPerspective(baseCanvas, cornerInfo.points, this.TARGET_W, this.TARGET_H);
 
     // Chấm điểm & khoanh kết quả
     const out = this.processWarpedCanvas(warpedCanvas, config, answerKeys);

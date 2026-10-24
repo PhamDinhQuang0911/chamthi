@@ -28,7 +28,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Compiled Tailwind CSS v4 Production Build -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=2026102504">
+  <link rel="stylesheet" href="css/tailwind.min.css?v=2026102505">
   
   <!-- SheetJS, jsQR, QRCode.js, Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -37,12 +37,12 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   
   <!-- Core Logic Scripts -->
-  <script src="js/omr-engine.js?v=2026102504"></script>
-  <script src="js/app.js?v=2026102504"></script>
-  <script src="js/features.js?v=2026102504"></script>
+  <script src="js/omr-engine.js?v=2026102505"></script>
+  <script src="js/app.js?v=2026102505"></script>
+  <script src="js/features.js?v=2026102505"></script>
   
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/style.css?v=2026102504">
+  <link rel="stylesheet" href="css/style.css?v=2026102505">
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-full flex flex-col font-sans">
 
@@ -297,109 +297,124 @@
     </div>
 
     <!-- ================= TAB 1: CHẤM BÀI (CAMERA 4 Ô ĐỊNH VỊ GÓC XANH LÁ) ================= -->
-    <div id="tabContent_scan" class="tab-content hidden space-y-3">
-      <div class="flex flex-col items-center">
+    <div id="tabContent_scan" class="tab-content hidden">
+      <div class="relative w-full max-w-[500px] mx-auto flex flex-col items-center">
         
-        <!-- Thanh điều hướng nhanh trên đầu khung quét -->
-        <div class="w-full max-w-[480px] flex items-center justify-between bg-white dark:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm text-xs">
-          <button onclick="window.openGradeExamPicker()" title="Đổi bài cần chấm" class="text-left min-w-0 flex-1 mr-2 group">
-            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Đang chấm bài <span class="text-blue-600 dark:text-blue-400 normal-case group-hover:underline">· Đổi bài ⇄</span></div>
-            <strong id="scanHeaderExamName" class="block text-slate-900 dark:text-white truncate">Ktra1</strong>
-            <div id="scanHeaderExamMeta" class="text-[10px] text-slate-500 dark:text-slate-400 truncate"></div>
+        <!-- TOP HUD BAR: Tinh gọn, kính mờ (Frosted Glass), tích hợp đầy đủ điều khiển -->
+        <div class="w-full flex items-center justify-between bg-slate-900/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-700/60 shadow-lg text-white mb-2 z-10">
+          <!-- Chọn / Đổi bài kiểm tra -->
+          <button onclick="window.openGradeExamPicker()" title="Đổi bài cần chấm" class="flex items-center space-x-2 text-left min-w-0 flex-1 mr-2 group">
+            <span class="w-7 h-7 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm shrink-0 border border-blue-400/30">📝</span>
+            <div class="min-w-0">
+              <div class="flex items-center space-x-1">
+                <strong id="scanHeaderExamName" class="text-xs sm:text-sm font-bold truncate max-w-[140px] sm:max-w-[190px]">Toán 12</strong>
+                <span class="text-[10px] text-blue-400 font-semibold group-hover:underline shrink-0">▾ Đổi</span>
+              </div>
+              <div id="scanHeaderExamMeta" class="text-[10px] text-slate-400 truncate">A4 · 24 mã đề</div>
+            </div>
           </button>
-          <div class="flex items-center space-x-2 shrink-0">
-            <button onclick="window.switchTab('results')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200">
-              🖼️ Đã chấm: <span id="scanHeaderCount">0</span>
+
+          <!-- Nút điều khiển nhanh: Tự động, Flash, Đổi Camera -->
+          <div class="flex items-center space-x-1.5 shrink-0">
+            <!-- Nút bật/tắt Tự Động Chấm -->
+            <button id="btnAutoScan" onclick="window.toggleAutoScan()" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition active:scale-95 shadow-sm" title="Bật/Tắt tự động chụp chấm khi đủ 4 góc">
+              <span class="flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Tự động: BẬT</span></span>
             </button>
-            <button onclick="window.switchTab('settings')" title="Cài đặt tốc độ chấm & độ nhạy" class="p-1 rounded bg-slate-100 dark:bg-slate-800">
-              ⚙️
+
+            <!-- Flash -->
+            <button id="btnTorch" onclick="window.toggleTorch()" title="Bật/Tắt Flash" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs transition active:scale-95 border border-slate-700">
+              🔦
+            </button>
+
+            <!-- Đổi camera -->
+            <button onclick="window.switchCamera()" title="Đổi camera trước/sau" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs transition active:scale-95 border border-slate-700">
+              🔄
             </button>
           </div>
         </div>
 
-        <!-- Thông báo nhanh kết quả vừa quét -->
-        <div id="scanQuickToast" class="hidden w-full max-w-[480px] bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-md flex items-center justify-between text-xs font-bold">
-          <span id="scanQuickToastText">Đã lưu SBD 123456 - Điểm: 9.50</span>
-          <button onclick="window.openLastGradedReview()" class="underline ml-2">Xem phiếu ›</button>
-        </div>
-
-        <!-- Khung quét Viewport với 4 Ô VUÔNG ĐỊNH VỊ GÓC MÀU XANH LÁ -->
+        <!-- KHUNG QUÉT CAMERA CHÍNH (VIEWFINDER PRO) -->
         <div id="scannerViewport" class="scanner-viewport">
           <video id="scannerVideo" class="scanner-video" playsinline muted autoplay></video>
           <div id="scannerFlashOverlay" class="scanner-flash"></div>
           
+          <!-- Lớp phủ định vị (Viewfinder Overlay) -->
           <div class="scanner-overlay">
             <div class="scanner-reticle">
-              <!-- 4 Ô VUÔNG ĐỊNH VỊ GÓC PHIẾU MÀU XANH LÁ CHUẨN APP QM -->
-              <div id="cornerBoxTL" class="qm-corner-square qm-corner-tl"></div>
-              <div id="cornerBoxTR" class="qm-corner-square qm-corner-tr"></div>
-              <div id="cornerBoxBR" class="qm-corner-square qm-corner-br"></div>
-              <div id="cornerBoxBL" class="qm-corner-square qm-corner-bl"></div>
+              <!-- 4 Ô VUÔNG ĐỊNH VỊ GÓC PHIẾU XANH LÁ CHUẨN APP QM -->
+              <div id="cornerBoxTL" class="qm-corner-square qm-corner-tl"><span class="qm-corner-plus">+</span></div>
+              <div id="cornerBoxTR" class="qm-corner-square qm-corner-tr"><span class="qm-corner-plus">+</span></div>
+              <div id="cornerBoxBR" class="qm-corner-square qm-corner-br"><span class="qm-corner-plus">+</span></div>
+              <div id="cornerBoxBL" class="qm-corner-square qm-corner-bl"><span class="qm-corner-plus">+</span></div>
 
-              <!-- Các đường dẫn hướng vùng nội bộ -->
-              <div class="qm-internal-guide" style="top: 32%;"></div>
-              <div class="qm-internal-guide" style="top: 55%;"></div>
-              <div class="qm-internal-guide" style="top: 70%;"></div>
-
-              <div class="scanner-laser"></div>
-
-              <!-- Huy hiệu báo số góc định vị đã bắt được -->
-              <div class="absolute top-2.5 inset-x-0 flex flex-col items-center space-y-1.5 px-6">
-                <span id="cornerLockBadge" class="inline-flex items-center px-3 py-1 bg-black/75 text-emerald-400 text-[11px] rounded-full font-bold border border-emerald-500/40 shadow">
-                  🎯 Định vị góc phiếu: 0/4 ô vuông xanh
+              <!-- Huy hiệu hướng dẫn & trạng thái định vị ở giữa trên -->
+              <div class="absolute top-3 inset-x-0 flex flex-col items-center pointer-events-none px-4">
+                <span id="cornerLockBadge" class="inline-flex items-center px-3.5 py-1 bg-black/80 backdrop-blur-md text-emerald-400 text-[11px] rounded-full font-bold border border-emerald-500/40 shadow-lg transition-all duration-200">
+                  🎯 Căn 4 góc phiếu vào 4 ô vuông xanh
                 </span>
-                <div id="scanLockProgressWrap" class="hidden w-40 h-1.5 bg-black/60 rounded-full overflow-hidden border border-white/20">
-                  <div id="scanLockProgressBar" class="h-full bg-emerald-400 transition-all duration-100" style="width: 0%;"></div>
+              </div>
+
+              <!-- Thanh Zoom Controls (Nổi ở góc trên phải camera khi thiết bị hỗ trợ) -->
+              <div id="zoomControlGroup" class="hidden absolute top-12 right-3 flex items-center space-x-1 z-10">
+                <!-- Sẽ được JS render động: [0.6x (Rộng)] [1x] [2x] -->
+              </div>
+
+              <!-- Floating Graded Toast: Thông báo nhanh kết quả bài vừa chấm (Hiện nổi ở đáy khung camera) -->
+              <div id="scanQuickToast" class="hidden absolute bottom-3 inset-x-3 bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-2.5 rounded-2xl shadow-2xl border border-emerald-500/50 flex items-center justify-between text-xs z-20 pointer-events-auto transition-all">
+                <div class="min-w-0 mr-2">
+                  <div class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse"></span>
+                    <span id="scanQuickToastText" class="font-bold text-white truncate text-[12px]">Đã chấm SBD 000434 · Điểm: 8.50</span>
+                  </div>
+                  <div id="scanQuickToastSub" class="text-[10px] text-slate-400 truncate">Mã đề: 5000 · Lớp 12A1</div>
                 </div>
+                <button onclick="window.openLastGradedReview()" class="shrink-0 px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-[11px] shadow transition active:scale-95">
+                  Xem bài ›
+                </button>
               </div>
 
-              <!-- Hướng dẫn bên dưới -->
-              <div class="absolute bottom-2.5 inset-x-0 text-center px-4">
-                <span class="inline-block px-3 py-1 bg-black/75 text-white text-[11px] rounded-full font-medium">
-                  Đưa 4 ô đen ở 4 góc phiếu vào đúng 4 ô vuông xanh lá
-                </span>
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- Camera Status -->
-        <div id="cameraStatus" class="mt-1 text-xs text-slate-500 dark:text-slate-400 flex items-center">
-          <span class="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1.5 animate-pulse"></span>
-          Đang kết nối camera...
+        <!-- Camera Status (thu nhỏ, tinh tế) -->
+        <div id="cameraStatus" class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 flex items-center">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
+          Camera sẵn sàng · Tự động chụp & chấm khi đủ 4 góc
         </div>
 
-        <!-- Các nút bấm điều khiển Camera -->
-        <div class="mt-2 flex flex-wrap items-center justify-center gap-2 w-full max-w-[480px]">
-          <button onclick="window.captureAndGrade()" class="btn-primary flex-1 min-w-[140px] py-3 px-4 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center space-x-2 transition active:scale-95">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            <span>Chụp & Chấm</span>
-          </button>
+        <!-- BOTTOM CONTROL BAR: Thanh điều khiển Pro phong cách Camera smartphone -->
+        <div class="mt-2 w-full max-w-[500px] flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          
+          <!-- Trái: Tải ảnh từ thư viện máy + số bài đã chấm -->
+          <div class="flex flex-col items-start min-w-[90px]">
+            <label class="btn-secondary cursor-pointer py-2 px-3 rounded-xl font-bold text-xs shadow-sm flex items-center space-x-1.5 active:scale-95 transition" title="Tải ảnh bài thi từ thư viện để chấm">
+              <span>🖼️ Tải ảnh</span>
+              <input type="file" multiple accept="image/*" onchange="window.handleFileUpload(event)" class="hidden">
+            </label>
+            <button onclick="window.switchTab('results')" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-500 transition">
+              Đã chấm: <strong id="scanHeaderCount" class="text-blue-600 dark:text-blue-400">0</strong> bài
+            </button>
+          </div>
 
-          <button id="btnAutoScan" onclick="window.toggleAutoScan()" class="btn-secondary py-3 px-3.5 rounded-xl font-semibold text-xs transition shadow-sm">
-            <span>⚡ Tự động: BẬT</span>
-          </button>
+          <!-- Giữa: Nút Chụp tròn lớn (Shutter Button) cho ai thích bấm chụp thủ công -->
+          <div class="flex flex-col items-center">
+            <button onclick="window.captureAndGrade()" title="Chụp & Chấm thủ công" class="shutter-button group focus:outline-none">
+              <span class="shutter-inner"></span>
+            </button>
+            <span class="text-[10px] text-slate-400 font-semibold mt-1">Chụp thủ công</span>
+          </div>
 
-          <button id="btnTorch" onclick="window.toggleTorch()" title="Bật/Tắt đèn Flash" class="btn-secondary py-3 px-3 rounded-xl text-xs font-semibold transition shadow-sm">
-            <span>🔦 Flash</span>
-          </button>
+          <!-- Phải: Nút Chấm thử mẫu 101 & Cài đặt -->
+          <div class="flex flex-col items-end min-w-[90px]">
+            <button onclick="window.gradeSampleSheet()" class="btn-secondary py-2 px-3 rounded-xl font-bold text-xs shadow-sm flex items-center space-x-1 active:scale-95 transition" title="Chấm nhanh bài thi mẫu 101 để kiểm tra">
+              <span>🎯 Mẫu 101</span>
+            </button>
+            <button onclick="window.switchTab('settings')" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-500 transition">
+              ⚙️ Cài đặt
+            </button>
+          </div>
 
-          <button onclick="window.switchCamera()" title="Đổi camera trước/sau" class="btn-secondary p-3 rounded-xl transition shadow-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          </button>
-        </div>
-
-        <!-- Tải ảnh từ máy hoặc Chấm thử mẫu 101 -->
-        <div class="mt-2.5 flex flex-wrap items-center justify-center gap-2 text-xs">
-          <label class="btn-secondary cursor-pointer py-2 px-3.5 rounded-lg font-semibold shadow-sm flex items-center space-x-1.5">
-            <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span>Tải ảnh phiếu từ máy</span>
-            <input type="file" multiple accept="image/*" onchange="window.handleFileUpload(event)" class="hidden">
-          </label>
-
-          <button onclick="window.gradeSampleSheet()" class="btn-secondary py-2 px-3.5 rounded-lg font-semibold shadow-sm flex items-center space-x-1">
-            <span>🎯 Chấm thử mẫu 101</span>
-          </button>
         </div>
 
       </div>

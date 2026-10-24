@@ -1497,11 +1497,71 @@ let isScanningInProgress = false;
 let currentTorchState = false;
 let lastGradedRecordId = null;
 let consecutiveLockedFrames = 0;
+let lastScanFrameTime = 0;
+let scanCooldownUntil = 0;
+let lastGradedKey = "";
+let lastGradedTime = 0;
+let currentZoomLevel = 1.0;
+let availableZoomCapabilities = null;
+
+function updateZoomButtonsUI(caps, currentVal) {
+  const wrap = document.getElementById("zoomControlGroup");
+  if (!wrap) return;
+
+  if (!caps) {
+    wrap.classList.add("hidden");
+    return;
+  }
+
+  wrap.classList.remove("hidden");
+  const minZ = caps.min || 1.0;
+  const maxZ = caps.max || 1.0;
+
+  const presets = [];
+  if (minZ < 0.95) presets.push(Number(minZ.toFixed(1)));
+  presets.push(1.0);
+  if (maxZ >= 2.0) presets.push(2.0);
+
+  const uniquePresets = Array.from(new Set(presets)).sort((a, b) => a - b);
+
+  wrap.innerHTML = uniquePresets.map(z => {
+    const isActive = Math.abs(currentVal - z) < 0.15;
+    const label = z < 1.0 ? `${z}x (Rộng)` : `${z}x`;
+    return `<button type="button" onclick="window.setCameraZoom(${z})" class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-sm ${
+      isActive
+        ? "bg-emerald-500 text-white ring-2 ring-emerald-300"
+        : "bg-black/60 text-white/90 hover:bg-black/80"
+    }">${label}</button>`;
+  }).join("");
+}
+
+window.setCameraZoom = async function setCameraZoom(val) {
+  if (!activeCameraStream) return;
+  const track = activeCameraStream.getVideoTracks()[0];
+  if (!track || !track.applyConstraints) return;
+
+  try {
+    let target = parseFloat(val);
+    if (availableZoomCapabilities) {
+      target = Math.max(availableZoomCapabilities.min, Math.min(availableZoomCapabilities.max, target));
+    }
+    await track.applyConstraints({ advanced: [{ zoom: target }] });
+    currentZoomLevel = target;
+    updateZoomButtonsUI(availableZoomCapabilities, currentZoomLevel);
+  } catch (e) {
+    console.warn("Set zoom failed:", e);
+  }
+};
 
 async function initCamera() {
   stopCameraAndLoop();
   const video = document.getElementById("scannerVideo");
   if (!video) return;
+
+  const statusEl = document.getElementById("cameraStatus");
+  if (statusEl) {
+    statusEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5 animate-pulse"></span>Đang mở camera...`;
+  }
 
   try {
     const constraints = {
@@ -1517,9 +1577,37 @@ async function initCamera() {
     video.srcObject = stream;
     await video.play();
 
+    // Khai thác Camera Zoom API: tự động chọn góc rộng nhất nếu camera hỗ trợ
+    const track = stream.getVideoTracks()[0];
+    if (track && track.getCapabilities) {
+      const caps = track.getCapabilities();
+      if (caps && caps.zoom) {
+        availableZoomCapabilities = caps.zoom;
+        const defaultZoom = caps.zoom.min < 0.95 ? caps.zoom.min : 1.0;
+        try {
+          await track.applyConstraints({ advanced: [{ zoom: defaultZoom }] });
+          currentZoomLevel = defaultZoom;
+        } catch (e) {}
+        updateZoomButtonsUI(caps.zoom, currentZoomLevel);
+      } else {
+        availableZoomCapabilities = null;
+        updateZoomButtonsUI(null, 1.0);
+      }
+    } else {
+      availableZoomCapabilities = null;
+      updateZoomButtonsUI(null, 1.0);
+    }
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>Camera sẵn sàng`;
+    }
+
     startCornerTrackingLoop();
   } catch (err) {
     console.warn("Camera init error:", err);
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-rose-500 font-semibold">⚠️ Không thể mở camera. Hãy dùng nút 'Tải ảnh phiếu'.</span>`;
+    }
     const box = document.getElementById("cameraErrorBox");
     if (box) box.classList.remove("hidden");
   }
@@ -1553,12 +1641,18 @@ function updateCornerSquaresUI(cornerStatus, lockedCount) {
 
   const badge = document.getElementById("cornerLockBadge");
   if (badge) {
-    if (lockedCount === 4) {
-      badge.className = "inline-flex items-center px-3 py-1 bg-emerald-600 text-white text-[11px] rounded-full font-bold shadow-lg animate-pulse";
-      badge.innerText = "🎯 Đã khóa 4 góc phiếu! Đang quét...";
+    if (Date.now() < scanCooldownUntil) {
+      badge.className = "inline-flex items-center px-3 py-1 bg-blue-600/90 text-white text-[11px] rounded-full font-bold shadow-md";
+      badge.innerText = "⏳ Đã chấm! Đang chờ đổi bài tiếp theo...";
+    } else if (lockedCount === 4) {
+      badge.className = "inline-flex items-center px-3 py-1 bg-emerald-600 text-white text-[11px] rounded-full font-bold shadow-lg animate-pulse ring-2 ring-emerald-300";
+      badge.innerText = `🎯 Đã khóa 4 góc! Giữ yên để tự chấm (${consecutiveLockedFrames}/2)...`;
+    } else if (lockedCount > 0) {
+      badge.className = "inline-flex items-center px-3 py-1 bg-black/75 text-amber-400 text-[11px] rounded-full font-bold border border-amber-500/40 shadow";
+      badge.innerText = `🎯 Đang tìm góc: ${lockedCount}/4 ô vuông xanh`;
     } else {
       badge.className = "inline-flex items-center px-3 py-1 bg-black/75 text-emerald-400 text-[11px] rounded-full font-bold border border-emerald-500/40 shadow";
-      badge.innerText = `🎯 Định vị góc phiếu: ${lockedCount}/4 ô vuông xanh`;
+      badge.innerText = "🎯 Căn 4 góc phiếu vào 4 ô vuông xanh";
     }
   }
 }
@@ -1575,7 +1669,7 @@ function startCornerTrackingLoop() {
   const video = document.getElementById("scannerVideo");
   if (!video) return;
 
-  const checkFrame = () => {
+  const checkFrame = (now) => {
     if (!activeCameraStream || video.paused || video.ended || video.readyState < 2) {
       cornerTrackingTimer = requestAnimationFrame(checkFrame);
       return;
@@ -1586,28 +1680,49 @@ function startCornerTrackingLoop() {
       return;
     }
 
+    // Điều tiết nhịp quét: mỗi 90ms quét 1 lần để mượt mà và không nóng máy
+    if (now - lastScanFrameTime < 90) {
+      cornerTrackingTimer = requestAnimationFrame(checkFrame);
+      return;
+    }
+    lastScanFrameTime = now;
+
     try {
-      const cornerResult = window.omrEngine.detectCornerMarkersWithStatus(video);
+      const cornerResult = window.omrEngine.checkVideoFrameCorners(video);
       updateCornerSquaresUI(cornerResult.cornerStatus, cornerResult.lockedCount);
 
       if (cornerResult.lockedCount === 4) {
         consecutiveLockedFrames++;
-        const settings = window.appState.data.settings || defaultSettings;
-        const requiredFrames = settings.scanSpeed === "fast" ? 1 : (settings.scanSpeed === "accurate" ? 4 : 2);
+        const requiredFrames = 2; // 2 frame liên tiếp (~180ms - 200ms) để chống rung tay
 
-        if (isAutoScanActive && consecutiveLockedFrames >= requiredFrames) {
+        // Nếu đã đủ 2 frame ổn định VÀ hết thời gian cooldown
+        if (isAutoScanActive && consecutiveLockedFrames >= requiredFrames && Date.now() > scanCooldownUntil) {
           consecutiveLockedFrames = 0;
           isScanningInProgress = true;
+
           try {
             const exam = window.appState.getCurrentExam();
             if (exam) {
               const gradeOutput = window.omrEngine.gradeFromImageSource(video, exam.config, exam.answerKeys);
-              saveGradedOutput(gradeOutput, exam, true);
+              const curKey = `${gradeOutput.result.sbd || ""}_${gradeOutput.result.made || ""}`;
+
+              // Chống quét trùng bài vừa chấm trong 5 giây
+              if (curKey && curKey === lastGradedKey && Date.now() < lastGradedTime + 5000) {
+                const badge = document.getElementById("cornerLockBadge");
+                if (badge) {
+                  badge.innerText = "✅ Đã chấm bài này. Hãy đưa phiếu tiếp theo vào...";
+                }
+              } else {
+                lastGradedKey = curKey;
+                lastGradedTime = Date.now();
+                scanCooldownUntil = Date.now() + 2200; // Cooldown 2.2 giây cho bài tiếp theo
+                saveGradedOutput(gradeOutput, exam, true);
+              }
             }
           } catch (e) {
             console.warn("Auto scan frame evaluation skipped:", e);
           } finally {
-            setTimeout(() => { isScanningInProgress = false; }, 800);
+            setTimeout(() => { isScanningInProgress = false; }, 600);
           }
         }
       } else {
@@ -1631,7 +1746,9 @@ window.toggleTorch = async function toggleTorch() {
     await track.applyConstraints({ advanced: [{ torch: currentTorchState }] });
     const btn = document.getElementById("btnTorch");
     if (btn) {
-      btn.innerText = currentTorchState ? "⚡ Tắt Flash" : "🔦 Flash";
+      btn.innerHTML = currentTorchState ? "<span>⚡ Tắt</span>" : "<span>🔦 Flash</span>";
+      btn.classList.toggle("bg-amber-500", currentTorchState);
+      btn.classList.toggle("text-white", currentTorchState);
     }
   } catch (e) {
     alert("Thiết bị không hỗ trợ bật đèn Flash!");
@@ -1647,7 +1764,10 @@ window.toggleAutoScan = function toggleAutoScan() {
   isAutoScanActive = !isAutoScanActive;
   const btn = document.getElementById("btnAutoScan");
   if (btn) {
-    btn.innerHTML = isAutoScanActive ? "<span>⚡ Tự động: BẬT</span>" : "<span>⚡ Tự động: TẮT</span>";
+    btn.innerHTML = isAutoScanActive
+      ? `<span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Tự động: BẬT</span></span>`
+      : `<span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Tự động: TẮT</span></span>`;
+    btn.classList.toggle("border-emerald-500/50", isAutoScanActive);
   }
 };
 
@@ -1720,11 +1840,25 @@ function saveGradedOutput(gradeOutput, exam, fromAutoScan = false) {
   window.renderExamHub && window.renderExamHub();
   window.renderResultsTable && window.renderResultsTable();
 
+  if (navigator.vibrate) {
+    try { navigator.vibrate([100, 50, 100]); } catch (e) {}
+  }
+
+  window.updateScanHeader && window.updateScanHeader();
+
   const toastEl = document.getElementById("scanQuickToast");
   const toastText = document.getElementById("scanQuickToastText");
+  const toastSub = document.getElementById("scanQuickToastSub");
   if (toastEl && toastText) {
-    toastText.innerText = `✅ Đã chấm [${resultRecord.className}] SBD ${resultRecord.sbd} (${resultRecord.studentName}) • Mã ${resultRecord.made} • Điểm: ${resultRecord.total_score.toFixed(2)}`;
+    toastText.innerText = `✅ SBD: ${resultRecord.sbd || "---"} • Điểm: ${resultRecord.total_score.toFixed(2)}/10`;
+    if (toastSub) {
+      toastSub.innerText = `Mã đề: ${resultRecord.made || "---"} • [${resultRecord.className || "Tự do"}] ${resultRecord.studentName || ""}`;
+    }
     toastEl.classList.remove("hidden");
+    if (window._quickToastTimer) clearTimeout(window._quickToastTimer);
+    window._quickToastTimer = setTimeout(() => {
+      if (toastEl) toastEl.classList.add("hidden");
+    }, 4000);
   }
 
   if (settings.viewScoreImmediately !== false || !fromAutoScan) {
