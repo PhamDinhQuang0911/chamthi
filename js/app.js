@@ -10,100 +10,203 @@
  */
 
 // BẢNG DANH MỤC ĐẦY ĐỦ 12 MẪU PHIẾU THI TỪ APP GỐC QM
+// =========================================================================
+// BẢNG CẤU HÌNH TOÀN BỘ 24 LOẠI PHIẾU CHẤM TỪ BẢN APK QM 2025 MỚI NHẤT
+// ĐẢM BẢO 100% ĐÚNG TÊN GỐC, ĐẦY ĐỦ CÁC LOẠI PHIẾU 4 SỐ VÀ 3 SỐ MÃ ĐỀ
+// =========================================================================
 const SHEET_TYPES = {
-  "A4_TN2025_BGD_1239": {
-    name: "A4 - Chuẩn Bộ GD&ĐT 2025 (1239)",
-    desc: "12 câu TN (3.0đ) + 4 câu Đúng/Sai (4.0đ) + 6 câu Trả lời ngắn (3.0đ)",
-    file: "a4_tn2025_bgd_1239.png",
-    made_digits: 3, has_sbd: true,
+  // === NHÓM 1: CÁC MẪU PHIẾU CÔNG VĂN 1239 (HỖ TRỢ MÃ ĐỀ 4 SỐ & 3 SỐ) ===
+  "A4_TN2025_QM_1239": {
+    name: "QM 2025 - CV 1239",
+    desc: "12 câu TN (3.0đ) + 4 câu Đ/S (4.0đ) + 6 câu TLN (3.0đ) - Chuẩn QMATH CV 1239",
+    file: "a4_tn2025_qm_1239.png",
+    made_digits: [3, 4], has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
-  "A4_TN2025_QM_1239": {
-    name: "A4 - Chuẩn QMATH 2025 (1239)",
-    desc: "12 câu TN + 4 câu Đ/S + 6 câu TLN (Bản vẽ chuẩn nét cao của QMATH)",
-    file: "a4_tn2025_qm_1239.png",
-    made_digits: 3, has_sbd: true,
+  "A4_TN2025_BGD_1239": {
+    name: "Bộ GD 2025 - CV 1239",
+    desc: "12 câu TN (3.0đ) + 4 câu Đ/S (4.0đ) + 6 câu TLN (3.0đ) - Chuẩn Bộ GD&ĐT CV 1239",
+    file: "a4_tn2025_bgd_1239.png",
+    made_digits: [3, 4], has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
   "A4_TN2025_TNMK_1239": {
-    name: "A4 - Chuẩn TNMaker 2025 (1239)",
-    desc: "12 câu TN + 4 câu Đ/S + 6 câu TLN (Tương thích phiếu TNMaker 2025)",
+    name: "TNMaker 2025 - CV 1239",
+    desc: "12 câu TN + 4 câu Đ/S + 6 câu TLN - Chuẩn TNMaker CV 1239",
     file: "a4_tn2025_tnmk_1239.jpg",
+    made_digits: [3, 4], has_sbd: true,
+    p1_num: 12, p2_num: 4, p3_num: 6,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
+  "CV_1239_401612": {
+    name: "CV 1239 - 40.16.12",
+    desc: "40 câu TN + 4 câu Đ/S (16 ý) + 12 câu TLN - Cấu trúc mở rộng CV 1239",
+    file: "cv_1239_40_16_12.jpg",
+    made_digits: 4, has_sbd: true,
+    p1_num: 40, p2_num: 4, p3_num: 12,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
+  "A4_TN2025_AZOTA_1239": {
+    name: "Azota 2025 - CV 1239",
+    desc: "12 câu TN + 4 câu Đ/S + 6 câu TLN - Chuẩn Azota CV 1239",
+    file: "a4_tn2025_azota_1239.jpg",
+    made_digits: 4, has_sbd: true,
+    p1_num: 12, p2_num: 4, p3_num: 6,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
+  "A4_AZOTA_v_32_0": {
+    name: "Azota 2025 - TN và TL - CV 1239",
+    desc: "Trắc nghiệm OMR kết hợp phần tự luận viết tay - Chuẩn Azota",
+    file: "a4_azota_v_32_0.jpg",
+    made_digits: 4, has_sbd: true,
+    p1_num: 12, p2_num: 4, p3_num: 6,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
+  "KHTN_NINHBINH_K9": {
+    name: "KHTN - Ninh Bình - Khối 9",
+    desc: "Khảo sát Khoa học tự nhiên Ninh Bình Khối 9: 18 câu TN + 4 câu Đ/S + 6 câu TLN",
+    file: "khtn_ninhbinh_k9.jpg",
+    made_digits: 4, has_sbd: true,
+    p1_num: 18, p2_num: 4, p3_num: 6,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
+  "UNT_2025_NGANG": {
+    name: "UNT 2025 - Ngang",
+    desc: "Phiếu ôn tập kiểm tra khổ ngang (12 TN + 4 Đ/S + 6 TLN - Hỗ trợ cả 3 và 4 số)",
+    file: "unt_2025_ngang.png",
+    made_digits: [3, 4], has_sbd: true,
+    p1_num: 12, p2_num: 4, p3_num: 6,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
+
+  // === NHÓM 2: CÁC MẪU PHIẾU CHUẨN MÃ ĐỀ 3 SỐ (THREEDIGITCODESHEETS) ===
+  "A4_TN2025_QM": {
+    name: "QM 2025 - A4",
+    desc: "40 câu trắc nghiệm 4 lựa chọn bản chuẩn nét cao QMATH (10.0đ)",
+    file: "a4_tn2025_qm.png",
+    made_digits: 3, has_sbd: true,
+    p1_num: 40, p2_num: 0, p3_num: 0,
+    p1_score: 0.25, p2_score_1: 0, p2_score_2: 0, p2_score_3: 0, p2_score_4: 0, p3_score: 0
+  },
+  "QM_2025_TOAN": {
+    name: "QM 2025 - Toán",
+    desc: "12 câu TN (3.0đ) + 4 câu Đ/S (4.0đ) + 6 câu TLN (3.0đ) môn Toán",
+    file: "qm_2025_toan.jpg",
     made_digits: 3, has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
+  "QM_2025_LY_HOA_SINH_DIA": {
+    name: "Địa",
+    desc: "Môn Địa lý: 28 câu TN nhiều lựa chọn (7.0đ) + 4 câu Đ/S (3.0đ)",
+    file: "qm_2025_ly_hoa_sinh_dia.jpg",
+    made_digits: 3, has_sbd: true,
+    p1_num: 28, p2_num: 4, p3_num: 0,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 0.75, p3_score: 0
+  },
+  "QM_2025_SU_GDCD_CONGNGHE_TIN": {
+    name: "GDPL",
+    desc: "Môn Giáo dục kinh tế & Pháp luật: 24 câu TN (6.0đ) + 4 câu Đ/S (4.0đ)",
+    file: "qm_2025_su_gdcd_congnghe_tin.jpg",
+    made_digits: 3, has_sbd: true,
+    p1_num: 24, p2_num: 4, p3_num: 0,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0
+  },
+  "QM_2025_NGOAI_NGU": {
+    name: "QM 2025 - Ngoại ngữ",
+    desc: "40 câu trắc nghiệm 4 lựa chọn môn Ngoại ngữ (10.0đ)",
+    file: "qm_2025_ngoai_ngu.jpg",
+    made_digits: 3, has_sbd: true,
+    p1_num: 40, p2_num: 0, p3_num: 0,
+    p1_score: 0.25, p2_score_1: 0, p2_score_2: 0, p2_score_3: 0, p2_score_4: 0, p3_score: 0
+  },
+  "QM_2025_OT_TLN": {
+    name: "QM 2025 - Ôn tập - TL ngắn",
+    desc: "20 câu Trả lời ngắn chuyên đề ôn tập (0.5đ/câu = 10.0đ)",
+    file: "qm_2025_ot_tln.jpg",
+    made_digits: 3, has_sbd: true,
+    p1_num: 0, p2_num: 0, p3_num: 20,
+    p1_score: 0, p2_score_1: 0, p2_score_2: 0, p2_score_3: 0, p2_score_4: 0, p3_score: 0.5
+  },
+  "A4_TN2025_BGD": {
+    name: "Bộ GD 2025 - A4",
+    desc: "40 câu trắc nghiệm 4 lựa chọn chuẩn Bộ GD&ĐT (10.0đ)",
+    file: "a4_tn2025_bgd.png",
+    made_digits: 3, has_sbd: true,
+    p1_num: 40, p2_num: 0, p3_num: 0,
+    p1_score: 0.25, p2_score_1: 0, p2_score_2: 0, p2_score_3: 0, p2_score_4: 0, p3_score: 0
+  },
+  "A4_TN2025_TNMK": {
+    name: "TNmaker 2025 - A4",
+    desc: "40 câu trắc nghiệm 4 lựa chọn chuẩn TNMaker (10.0đ)",
+    file: "a4_tn2025_tnmk.png",
+    made_digits: 3, has_sbd: true,
+    p1_num: 40, p2_num: 0, p3_num: 0,
+    p1_score: 0.25, p2_score_1: 0, p2_score_2: 0, p2_score_3: 0, p2_score_4: 0, p3_score: 0
+  },
   "A4_TN2025_AZOTA": {
-    name: "A4 - Chuẩn Azota 2025",
-    desc: "Phiếu trả lời trắc nghiệm chuẩn Azota năm học 2025",
+    name: "Azota 2025 - A4",
+    desc: "12 câu TN (3.0đ) + 4 câu Đ/S (4.0đ) + 6 câu TLN (3.0đ) chuẩn Azota",
     file: "a4_tn2025_azota.png",
     made_digits: 3, has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
+  "A5_TN2025_AZOTA": {
+    name: "Azota 2025 - A5",
+    desc: "Khổ giấy A5 (1/2 trang A4) nhỏ gọn: 12 TN + 4 Đ/S + 6 TLN",
+    file: "a5_tn2025_azota.png",
+    made_digits: 3, has_sbd: true,
+    p1_num: 12, p2_num: 4, p3_num: 6,
+    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
+  },
   "A4_TNTL_2025_AZOTA": {
-    name: "A4 - Azota Tự Luận & Trắc Nghiệm 2025",
+    name: "Azota 2025 - A4 TN và Tự luận",
     desc: "Kết hợp phần trắc nghiệm OMR và phần tự luận học sinh viết tay",
     file: "a4_tntl_2025_azota.png",
     made_digits: 3, has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
-  "A5_TN2025_AZOTA": {
-    name: "A5 - Chuẩn Azota Khổ Nhỏ",
-    desc: "Khổ giấy A5 (1/2 trang A4) nhỏ gọn, tiết kiệm chi phí in ấn",
-    file: "a5_tn2025_azota.png",
+  "QM_2025_KHTN_10": {
+    name: "QM 2025 - KH Tự Nhiên - 10",
+    desc: "Môn Khoa học Tự nhiên lớp 10: 18 câu TN + 4 câu Đ/S + 6 câu TLN",
+    file: "qm_2025_khtn_10.png",
     made_digits: 3, has_sbd: true,
-    p1_num: 12, p2_num: 4, p3_num: 6,
+    p1_num: 18, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
-  "A4_TN2025_BGD": {
-    name: "A4 - Bộ GD&ĐT (40 câu trắc nghiệm)",
-    desc: "40 câu trắc nghiệm 4 lựa chọn A, B, C, D (0.25đ/câu = 10.0đ)",
-    file: "a4_tn2025_bgd.png",
+  "QM_2025_HSG_30_10_10": {
+    name: "QM 2025 - HSG - 30.10.10",
+    desc: "Đề thi Học sinh giỏi: 30 câu TN + 10 câu Đ/S + 10 câu TLN",
+    file: "qm_2025_hsg_30_10_10.png",
     made_digits: 3, has_sbd: true,
-    p1_num: 40, p2_num: 0, p3_num: 0,
-    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.0
+    p1_num: 30, p2_num: 10, p3_num: 10,
+    p1_score: 0.2, p2_score_1: 0.1, p2_score_2: 0.2, p2_score_3: 0.3, p2_score_4: 0.4, p3_score: 0.5
   },
-  "A4_TN2025_QM": {
-    name: "A4 - QMATH (40 câu trắc nghiệm)",
-    desc: "40 câu trắc nghiệm 4 lựa chọn bản chuẩn hóa QMATH",
-    file: "a4_tn2025_qm.png",
+  "QM_2025_HSG_30_20_00": {
+    name: "QM 2025 - HSG - 30.20.00",
+    desc: "Đề thi Học sinh giỏi: 30 câu TN + 20 câu Đ/S (Không có TLN)",
+    file: "qm_2025_hsg_30_20_00.png",
     made_digits: 3, has_sbd: true,
-    p1_num: 40, p2_num: 0, p3_num: 0,
-    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.0
-  },
-  "A4_TN2025_TNMK": {
-    name: "A4 - TNMaker (40 câu trắc nghiệm)",
-    desc: "40 câu trắc nghiệm 4 lựa chọn chuẩn TNMaker",
-    file: "a4_tn2025_tnmk.png",
-    made_digits: 3, has_sbd: true,
-    p1_num: 40, p2_num: 0, p3_num: 0,
-    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.0
+    p1_num: 30, p2_num: 20, p3_num: 0,
+    p1_score: 0.2, p2_score_1: 0.05, p2_score_2: 0.1, p2_score_3: 0.15, p2_score_4: 0.2, p3_score: 0
   },
   "A4_UNT_2025": {
-    name: "A4 - Phiếu Ôn Tập & Kiểm Tra (UNT 2025 - Có SBD)",
-    desc: "Dành cho kiểm tra định kỳ 15 phút, 1 tiết trên lớp (Hỗ trợ 3 hoặc 4 số mã đề)",
+    name: "UNT 2025 - A4",
+    desc: "Phiếu ôn tập & kiểm tra định kỳ (12 TN + 4 Đ/S + 6 TLN - Có SBD)",
     file: "a4_unt_2025.png",
     made_digits: 3, has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   },
   "A4_UNT_NOSBD_2025": {
-    name: "A4 - Phiếu Ôn Tập Nhanh (Không quét SBD)",
-    desc: "Chỉ ghi tên học sinh, không cần tô 6 số báo danh",
+    name: "UNT 2025 - Phách - A4",
+    desc: "Phiếu ôn tập kiểm tra rọc phách (Chỉ ghi họ tên, không quét 6 số báo danh)",
     file: "a4_unt_nosbd_2025.png",
     made_digits: 3, has_sbd: false,
-    p1_num: 12, p2_num: 4, p3_num: 6,
-    p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
-  },
-  "UNT_2025_NGANG": {
-    name: "A4 - Phiếu Ôn Tập Khổ Ngang (Mã đề 3/4 số)",
-    desc: "Khổ ngang thuận tiện cho bài thi kết hợp tự luận",
-    file: "unt_2025_ngang.png",
-    made_digits: 4, has_sbd: true,
     p1_num: 12, p2_num: 4, p3_num: 6,
     p1_score: 0.25, p2_score_1: 0.1, p2_score_2: 0.25, p2_score_3: 0.5, p2_score_4: 1.0, p3_score: 0.5
   }
@@ -403,10 +506,17 @@ function populateExamModalSheetDropdown(madeDigits = 3, selectedKey = null) {
   const select = document.getElementById("examSheetTypeSelect");
   if (!select) return;
 
-  const validEntries = Object.entries(SHEET_TYPES).filter(([k, item]) => item.made_digits === madeDigits);
+  const validEntries = Object.entries(SHEET_TYPES).filter(([k, item]) => {
+    if (Array.isArray(item.made_digits)) {
+      return item.made_digits.includes(madeDigits);
+    }
+    return item.made_digits === madeDigits;
+  });
+
+  const defaultKey = madeDigits === 4 ? "A4_TN2025_QM_1239" : "A4_TN2025_QM";
 
   select.innerHTML = validEntries.map(([k, item]) => {
-    const isSelected = selectedKey ? (k === selectedKey) : (k === "A4_TN2025_BGD_1239" || k === validEntries[0][0]);
+    const isSelected = selectedKey ? (k === selectedKey) : (k === defaultKey || k === validEntries[0][0]);
     return `<option value="${k}" ${isSelected ? "selected" : ""}>${item.name}</option>`;
   }).join("");
 
