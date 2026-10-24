@@ -38,8 +38,12 @@
     }
   </script>
   
-  <!-- SheetJS (Excel Exporter) -->
+  <!-- SheetJS (Excel Importer & Exporter) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- jsQR (QR Code Scanner) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <!-- QRCode.js (QR Code Generator) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   
@@ -47,6 +51,10 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col">
+
+  <!-- Hidden inputs for Excel & QR file picking -->
+  <input type="file" id="excelKeyFileInput" accept=".xlsx, .xls" onchange="handleExcelKeyUpload(event)" class="hidden">
+  <input type="file" id="qrImageFileInput" accept="image/*" onchange="handleQRImageUpload(event)" class="hidden">
 
   <!-- HEADER -->
   <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
@@ -65,13 +73,16 @@
       </div>
 
       <!-- Quick Exam Selector -->
-      <div class="flex items-center space-x-3 text-sm">
-        <div class="flex items-center bg-slate-100 dark:bg-slate-700/60 rounded-lg px-3 py-1.5 border border-slate-200 dark:border-slate-600">
+      <div class="flex items-center space-x-2 text-sm">
+        <div class="flex items-center bg-slate-100 dark:bg-slate-700/60 rounded-xl px-3 py-1.5 border border-slate-200 dark:border-slate-600">
           <span class="text-xs text-slate-500 dark:text-slate-400 mr-2">Bài thi:</span>
-          <select id="headerExamSelect" onchange="onExamChange(this.value)" class="bg-transparent font-medium text-slate-800 dark:text-slate-100 text-xs sm:text-sm focus:outline-none cursor-pointer">
-            <option value="exam_101">Khảo sát Toán 12 - Chuẩn BGD 2025</option>
+          <select id="headerExamSelect" onchange="onExamChange(this.value)" class="bg-transparent font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm focus:outline-none cursor-pointer">
+            <!-- Populated via JS -->
           </select>
         </div>
+        <button onclick="showCreateExamModal()" title="Tạo bài thi mới & Chọn loại phiếu" class="p-2 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 hover:bg-sky-100 border border-sky-200 dark:border-sky-800 font-bold text-xs flex items-center space-x-1">
+          <span>+ Mới</span>
+        </button>
       </div>
     </div>
 
@@ -81,7 +92,7 @@
         <span>📷</span> <span>Chấm Bài (Camera)</span>
       </button>
       <button id="tabBtn_exams" onclick="switchTab('exams')" class="tab-btn py-3 px-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
-        <span>📝</span> <span>Bài Thi & Đáp Án</span>
+        <span>📝</span> <span>Bài Thi & Đáp Án (Excel / QR)</span>
       </button>
       <button id="tabBtn_classes" onclick="switchTab('classes')" class="tab-btn py-3 px-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
         <span>👥</span> <span>Lớp & Học Sinh</span>
@@ -100,8 +111,6 @@
 
     <!-- ================= TAB 1: CHẤM BÀI CAMERA ================= -->
     <div id="tabContent_scan" class="tab-content space-y-6">
-      
-      <!-- Video Scanner Container -->
       <div class="flex flex-col items-center">
         <div id="scannerViewport" class="scanner-viewport">
           <video id="scannerVideo" class="scanner-video" playsinline muted autoplay></video>
@@ -131,24 +140,21 @@
 
         <!-- Camera Action Controls -->
         <div class="mt-4 flex flex-wrap items-center justify-center gap-3 w-full max-w-md">
-          <!-- Chụp & Chấm -->
           <button onclick="captureAndGrade()" class="flex-1 min-w-[160px] py-3.5 px-6 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-bold text-base shadow-lg shadow-sky-600/30 flex items-center justify-center space-x-2 transition transform active:scale-95">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             <span>Chụp & Chấm</span>
           </button>
 
-          <!-- Tự động quét -->
           <button id="btnAutoScan" onclick="toggleAutoScan()" class="py-3.5 px-4 rounded-2xl bg-slate-700 hover:bg-slate-800 text-slate-200 font-semibold text-sm transition flex items-center space-x-1.5">
             <span>⚡ Tự động quét: TẮT</span>
           </button>
 
-          <!-- Đổi Camera -->
           <button onclick="switchCamera()" title="Đổi Camera Trước/Sau" class="p-3.5 rounded-2xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
           </button>
         </div>
 
-        <!-- Tùy chọn tải ảnh từ máy hoặc test 1 click -->
+        <!-- Tải ảnh hoặc chấm thử -->
         <div class="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
           <label class="cursor-pointer py-2 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 font-medium text-slate-700 dark:text-slate-300 shadow-sm flex items-center space-x-1.5">
             <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -161,55 +167,60 @@
           </button>
         </div>
       </div>
-
     </div>
 
-    <!-- ================= TAB 2: BÀI THI & ĐÁP ÁN ================= -->
+    <!-- ================= TAB 2: BÀI THI & ĐÁP ÁN (EXCEL / QR / VISUAL) ================= -->
     <div id="tabContent_exams" class="tab-content hidden space-y-6">
-      <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Quản Lý Bài Thi & Đáp Án</h2>
-            <p class="text-xs text-slate-500 mt-1">Cấu hình thang điểm và nạp đáp án cho các mã đề thi</p>
+      
+      <!-- Top Exam Control & Sheet Type Info -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span class="text-xs uppercase font-bold text-sky-600 tracking-wider">Cấu Hình Bài Thi Hiện Tại</span>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white mt-0.5" id="examDetailTitle">Khảo sát Chất lượng Toán 12</h2>
+          <div class="flex flex-wrap items-center gap-2 mt-2">
+            <span id="examSheetBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+              A4 - Chuẩn Bộ GD&ĐT 2025 (1239)
+            </span>
+            <span class="text-xs text-slate-500">• 12 TN + 4 Đ/S + 6 TLN (Thang 10.0đ)</span>
           </div>
-          <button onclick="addNewExamPrompt()" class="py-2 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium text-sm flex items-center space-x-1.5 shadow-sm">
-            <span>+ Tạo bài thi mới</span>
+        </div>
+
+        <!-- Toolbar Buttons: Tạo bài mới, Excel, QR Code -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="showCreateExamModal()" class="py-2 px-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md shadow-sky-600/20 flex items-center space-x-1.5">
+            <span>+ Tạo bài thi mới (Chọn loại phiếu)</span>
+          </button>
+
+          <button onclick="triggerExcelKeyUpload()" class="py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs flex items-center space-x-1.5">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            <span>📥 Nạp từ File Excel</span>
+          </button>
+
+          <button onclick="downloadExcelKeyTemplate()" class="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center space-x-1">
+            <span>📥 Tải File Mẫu (.xlsx)</span>
+          </button>
+
+          <button onclick="openQRScannerModal()" class="py-2 px-3 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-bold text-xs flex items-center space-x-1.5">
+            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M4 8h16M4 16h4m4-4h.01M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6z"></path></svg>
+            <span>📷 Quét mã QR Đáp Án</span>
+          </button>
+
+          <button onclick="addNewMadePrompt()" class="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center space-x-1">
+            <span>+ Thêm mã đề</span>
           </button>
         </div>
-
-        <div id="examConfigArea" class="space-y-6">
-          <!-- Thông tin cấu hình chuẩn 2025 -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs">
-            <div>
-              <p class="text-slate-500">Loại phiếu thi</p>
-              <p class="font-bold text-slate-800 dark:text-slate-200 text-sm mt-0.5">Chuẩn Bộ GD&ĐT 2025</p>
-              <p class="text-[11px] text-slate-400">12 TN + 4 Đ/S + 6 TLN</p>
-            </div>
-            <div>
-              <p class="text-slate-500">Biểu điểm Phần I & III</p>
-              <p class="font-bold text-slate-800 dark:text-slate-200 text-sm mt-0.5">P1: 0.25đ/câu | P3: 0.5đ/câu</p>
-              <p class="text-[11px] text-slate-400">P1 = 3.0đ | P3 = 3.0đ</p>
-            </div>
-            <div>
-              <p class="text-slate-500">Biểu điểm Phần II (Đúng/Sai)</p>
-              <p class="font-bold text-slate-800 dark:text-slate-200 text-sm mt-0.5">1 ý: 0.1đ | 2 ý: 0.25đ | 3 ý: 0.5đ | 4 ý: 1.0đ</p>
-              <p class="text-[11px] text-slate-400">Tổng P2 = 4.0đ (Toàn bài: 10.0đ)</p>
-            </div>
-          </div>
-
-          <!-- Danh sách Mã Đề & Đáp Án -->
-          <div class="border-t border-slate-200 dark:border-slate-700 pt-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="font-bold text-base text-slate-900 dark:text-white">Danh Sách Mã Đề Đã Nạp</h3>
-              <button onclick="addNewCodePrompt()" class="text-xs text-sky-600 hover:underline font-semibold">+ Thêm mã đề mới</button>
-            </div>
-
-            <div id="answerKeysContainer" class="space-y-4">
-              <!-- Rendered via JS -->
-            </div>
-          </div>
-        </div>
       </div>
+
+      <!-- Selector Tabs cho các Mã Đề (101, 102...) -->
+      <div class="flex items-center space-x-2 overflow-x-auto pb-1" id="visualCodeSelector">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- KHUNG HIỂN THỊ ĐÁP ÁN TRỰC QUAN NHƯ PHIẾU CHẤM (INTERACTIVE BUBBLE SHEET) -->
+      <div id="visualAnswerSheetContainer">
+        <!-- Rendered via JS -->
+      </div>
+
     </div>
 
     <!-- ================= TAB 3: LỚP & HỌC SINH ================= -->
@@ -218,7 +229,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-900 dark:text-white">Danh Sách Lớp & Học Sinh</h2>
-            <p class="text-xs text-slate-500 mt-1">Gán Số báo danh (SBD) với tên học sinh để tự động nhận diện</p>
+            <p class="text-xs text-slate-500 mt-1">Gán Số báo danh (SBD) với tên học sinh để tự động nhận diện khi chấm</p>
           </div>
           <button onclick="showImportStudentsModal()" class="py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm flex items-center space-x-1.5 shadow-sm">
             <span>📋 Nạp danh sách nhanh (Copy/Paste)</span>
@@ -245,15 +256,12 @@
 
     <!-- ================= TAB 4: BẢNG ĐIỂM & XUẤT EXCEL ================= -->
     <div id="tabContent_results" class="tab-content hidden space-y-6">
-      
-      <!-- Summary metrics cards -->
       <div id="resultsStats"></div>
 
-      <!-- Action bar -->
       <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div>
           <h3 class="font-bold text-slate-900 dark:text-white text-base">Kết Quả Chấm Bài Chi Tiết</h3>
-          <p class="text-xs text-slate-500">Tự động đồng bộ và lưu trữ trên trình duyệt</p>
+          <p class="text-xs text-slate-500">Tự động đồng bộ và lưu trữ an toàn trên trình duyệt</p>
         </div>
 
         <div class="flex items-center space-x-2">
@@ -267,7 +275,6 @@
         </div>
       </div>
 
-      <!-- Results Table -->
       <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
@@ -326,7 +333,113 @@
 
   </main>
 
-  <!-- MODAL: KẾT QUẢ CHẤM TỨC THÌ (SCORE POPUP) -->
+  <!-- ================= MODALS ================= -->
+
+  <!-- MODAL 1: TẠO BÀI THI MỚI & CHỌN LOẠI PHIẾU CHẤM -->
+  <div id="createExamModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Tạo Bài Thi Mới & Chọn Loại Phiếu</h3>
+        <button onclick="closeCreateExamModal()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400">✕</button>
+      </div>
+
+      <div class="space-y-4 my-5 text-sm">
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Tên bài thi:</label>
+          <input type="text" id="newExamNameInput" placeholder="Ví dụ: Khảo sát Toán 12 - Lần 1" class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Áp dụng cho Lớp:</label>
+          <select id="examClassSelect" class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Loại Phiếu Chấm Trắc Nghiệm:
+          </label>
+          <select id="examSheetTypeSelect" class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <!-- Populated via JS -->
+          </select>
+          <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            Hệ thống hỗ trợ chuẩn Bộ GD&ĐT 2025 (12 TN + 4 Đ/S + 6 TLN), mẫu 40 câu, 50 câu truyền thống, TNMaker và Azota.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+        <button onclick="closeCreateExamModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+          Hủy bỏ
+        </button>
+        <button onclick="saveNewExam()" class="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md shadow-sky-600/20">
+          Tạo Bài Thi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: QUÉT MÃ QR ĐÁP ÁN (CAMERA HOẶC FILE ẢNH) -->
+  <div id="qrScannerModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 text-center">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 mb-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-1.5">
+          <span>📷</span> <span>Quét Mã QR Đáp Án</span>
+        </h3>
+        <button onclick="closeQRScannerModal()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400">✕</button>
+      </div>
+
+      <!-- Video QR feed -->
+      <div class="relative w-full aspect-square max-w-[280px] mx-auto rounded-2xl overflow-hidden bg-black shadow-inner border-2 border-purple-500">
+        <video id="qrVideoFeed" class="w-full h-full object-cover" playsinline muted autoplay></video>
+        <div class="absolute inset-0 border-2 border-dashed border-purple-400/80 rounded-xl m-6 pointer-events-none"></div>
+      </div>
+
+      <p id="qrCameraStatus" class="text-xs text-slate-500 mt-3">Hướng camera vào mã QR đáp án thi</p>
+
+      <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-center space-x-3">
+        <label class="cursor-pointer py-2 px-3 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 font-semibold text-xs flex items-center space-x-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          <span>Tải ảnh mã QR từ máy</span>
+          <input type="file" accept="image/*" onchange="handleQRImageUpload(event)" class="hidden">
+        </label>
+        <button onclick="closeQRScannerModal()" class="py-2 px-4 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: XUẤT & CHIA SẺ MÃ QR ĐÁP ÁN -->
+  <div id="qrShareModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 text-center">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 mb-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Mã QR Chia Sẻ Đáp Án</h3>
+        <button onclick="closeQRShareModal()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-500 mb-1" id="qrShareExamName">Khảo sát Toán 12</p>
+      <div class="inline-block px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-mono font-bold text-sm mb-4">
+        MÃ ĐỀ: <span id="qrShareMade">101</span>
+      </div>
+
+      <!-- QR Container -->
+      <div class="p-4 bg-white rounded-2xl shadow-inner border border-slate-200 inline-block mx-auto mb-4">
+        <div id="qrcodeDisplay" class="flex items-center justify-center"></div>
+      </div>
+
+      <p class="text-xs text-slate-500 leading-relaxed">
+        Giáo viên khác có thể dùng chức năng <strong>"Quét mã QR Đáp Án"</strong> trên điện thoại để nạp toàn bộ mã đề này chỉ trong 1 giây!
+      </p>
+
+      <button onclick="closeQRShareModal()" class="mt-4 w-full py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white font-bold text-sm">
+        Đóng
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 4: KẾT QUẢ CHẤM TỨC THÌ (SCORE POPUP) -->
   <div id="resultModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[92vh] overflow-y-auto">
       
@@ -364,12 +477,10 @@
         </div>
       </div>
 
-      <!-- Graded sheet preview image with circles -->
       <div class="mb-5 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900">
         <img id="modalPreviewImg" src="" alt="Phiếu thi đã chấm" class="w-full max-h-72 object-contain mx-auto">
       </div>
 
-      <!-- Action buttons -->
       <div class="flex items-center space-x-3">
         <button onclick="closeResultModal()" class="flex-1 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md shadow-sky-600/20">
           Quét Bài Tiếp Theo
@@ -391,31 +502,6 @@
   <script src="js/omr-engine.js"></script>
   <script src="js/app.js"></script>
   <script>
-    // Bổ sung helpers render đáp án và học sinh
-    function renderAnswerKeys() {
-      const exam = appState.getCurrentExam();
-      const container = document.getElementById("answerKeysContainer");
-      if (!container || !exam) return;
-
-      let html = "";
-      for (const [code, key] of Object.entries(exam.answerKeys)) {
-        html += `
-          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-bold text-sm text-sky-600 font-mono">Mã Đề: ${code}</span>
-              <span class="text-xs text-slate-500">${key.part1.length} câu P1 • ${Object.keys(key.part2).length} câu P2 • ${key.part3.length} câu P3</span>
-            </div>
-            <div class="text-xs text-slate-600 dark:text-slate-400 font-mono">
-              <p>• P.I: ${key.part1.join(" ")}</p>
-              <p>• P.II: ${Object.entries(key.part2).map(([q, s]) => `${q}(${s.join('')})`).join(" ")}</p>
-              <p>• P.III: ${key.part3.join(" | ")}</p>
-            </div>
-          </div>
-        `;
-      }
-      container.innerHTML = html;
-    }
-
     function renderStudentsList() {
       const cls = appState.getCurrentClass();
       const tbody = document.getElementById("studentsTableBody");
@@ -465,65 +551,13 @@
       alert("Đã cập nhật danh sách học sinh thành công!");
     }
 
-    function addNewCodePrompt() {
-      const code = prompt("Nhập Mã Đề mới (3 chữ số, ví dụ 103):");
-      if (!code) return;
-      const p1 = prompt("Nhập đáp án Phần I (12 ký tự A, B, C, D cách nhau bằng dấu cách):", "A B C D A B C D A B C D");
-      if (!p1) return;
-
-      const exam = appState.getCurrentExam();
-      exam.answerKeys[code] = {
-        part1: p1.trim().toUpperCase().split(/\s+/),
-        part2: { "1": ["Đ","S","Đ","S"], "2": ["Đ","Đ","S","S"], "3": ["S","Đ","Đ","S"], "4": ["Đ","S","S","Đ"] },
-        part3: ["1", "2", "3", "4", "5", "6"]
-      };
-      appState.save();
-      renderAnswerKeys();
-      alert(`Đã thêm mã đề ${code} thành công!`);
-    }
-
-    function addNewExamPrompt() {
-      const name = prompt("Nhập tên bài thi mới:", "Khảo sát Toán - Đợt 2");
-      if (!name) return;
-      const newExam = {
-        id: "exam_" + Date.now(),
-        classId: appState.data.currentClassId,
-        name: name,
-        date: new Date().toISOString().split("T")[0],
-        config: { p1_num: 12, p2_num: 4, p3_num: 6, p1_score: 0.25, p3_score: 0.5 },
-        answerKeys: {
-          "101": {
-            part1: ["A", "B", "C", "D", "A", "B", "C", "D", "A", "B", "C", "D"],
-            part2: { "1": ["Đ","S","Đ","S"], "2": ["Đ","Đ","S","S"], "3": ["S","Đ","Đ","S"], "4": ["Đ","S","S","Đ"] },
-            part3: ["1.5", "-2", "0.75", "10", "-3.5", "4"]
-          }
-        }
-      };
-      appState.data.exams.push(newExam);
-      appState.data.currentExamId = newExam.id;
-      appState.save();
-      updateExamSelect();
-      renderAnswerKeys();
-      alert("Đã tạo bài thi mới thành công!");
-    }
-
-    function updateExamSelect() {
-      const select = document.getElementById("headerExamSelect");
-      if (!select) return;
-      select.innerHTML = appState.data.exams.map(e => `<option value="${e.id}" ${e.id === appState.data.currentExamId ? 'selected' : ''}>${e.name}</option>`).join("");
-    }
-
-    function onExamChange(examId) {
-      appState.data.currentExamId = examId;
-      appState.save();
-      renderAnswerKeys();
-      renderResultsTable();
-    }
-
     window.addEventListener("load", () => {
-      updateExamSelect();
-      renderAnswerKeys();
       renderStudentsList();
+      const exam = appState.getCurrentExam();
+      if (exam) {
+        document.getElementById("examDetailTitle").innerText = exam.name;
+        document.getElementById("examSheetBadge").innerText = SHEET_TYPES[exam.sheet_type]?.name || "Chuẩn BGD 2025";
+      }
     });
   </script>
 </body>
