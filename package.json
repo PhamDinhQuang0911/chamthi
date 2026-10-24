@@ -1,0 +1,31 @@
+{
+  "name": "chamthi-web",
+  "version": "1.0.0",
+  "description": "Hệ thống chấm thi trắc nghiệm quang học (OMR) thế hệ mới chuẩn Bộ Giáo dục & Đào tạo 2025, hoạt động 100% trên nền tảng Web bằng Camera điện thoại hoặc ảnh tải lên.",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "tailwindcss -i src/input.css -o css/tailwind.min.css --minify",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhamDinhQuang0911/chamthi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/PhamDinhQuang0911/chamthi/issues"
+  },
+  "homepage": "https://github.com/PhamDinhQuang0911/chamthi#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.31",
+    "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}

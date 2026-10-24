@@ -82,6 +82,38 @@ const SHEET_TYPES = {
 
 window.SHEET_TYPES = SHEET_TYPES;
 
+// ================= THEME MANAGEMENT (SÁNG / TỐI) =================
+window.initTheme = function() {
+  try {
+    const saved = localStorage.getItem("chamthi_theme");
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved === "dark" || (!saved && prefersDark);
+    window.setTheme(isDark ? "dark" : "light");
+  } catch (e) {
+    console.warn("Theme init error:", e);
+  }
+};
+
+window.toggleTheme = function() {
+  const isCurrentlyDark = document.documentElement.classList.contains("dark");
+  window.setTheme(isCurrentlyDark ? "light" : "dark");
+};
+
+window.setTheme = function(theme) {
+  const icon = document.getElementById("themeToggleIcon");
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+    document.body.classList.add("dark");
+    localStorage.setItem("chamthi_theme", "dark");
+    if (icon) icon.innerText = "☀️";
+  } else {
+    document.documentElement.classList.remove("dark");
+    document.body.classList.remove("dark");
+    localStorage.setItem("chamthi_theme", "light");
+    if (icon) icon.innerText = "🌙";
+  }
+};
+
 const STORAGE_KEY = "QMATH_OMR_DATA_V4";
 
 const defaultState = {
@@ -750,7 +782,7 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
   Object.keys(exam.answerKeys).forEach(c => {
     const isActive = c === curMade;
     codeTabsHtml += `
-      <button onclick="selectActiveMade('${c}')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono transition ${isActive ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">
+      <button onclick="window.selectActiveMade('${c}')" class="code-tab-btn ${isActive ? 'active' : ''}">
         MÃ ${c}
       </button>
     `;
@@ -762,24 +794,24 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
   const p3Num = exam.config.p3_num || 0;
 
   let sheetHtml = `
-    <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-5">
-      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+    <div class="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center space-x-2">
           <span class="text-xs uppercase font-bold text-slate-400">Đang chọn:</span>
-          <span class="px-2.5 py-0.5 rounded bg-slate-100 text-slate-900 font-mono font-bold text-sm border border-slate-200">
+          <span class="px-2.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-sm border border-slate-200 dark:border-slate-700">
             MÃ ${curMade}
           </span>
-          <span class="text-xs text-slate-500">(${p1Num} câu P1 • ${p2Num} câu P2 • ${p3Num} câu P3)</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400">(${p1Num} câu P1 • ${p2Num} câu P2 • ${p3Num} câu P3)</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <button onclick="showQRCodeShareModal('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
+          <button onclick="window.showQRCodeShareModal('${curMade}')" class="btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 shadow-sm">
             <span>📱 Mã QR chia sẻ</span>
           </button>
-          <button onclick="quickTextPastePrompt('${curMade}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1">
+          <button onclick="window.quickTextPastePrompt('${curMade}')" class="btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 shadow-sm">
             <span>⚡ Dán chuỗi text</span>
           </button>
-          <button onclick="deleteCurrentMade('${curMade}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold">
+          <button onclick="window.deleteCurrentMade('${curMade}')" class="btn-danger px-2.5 py-1.5 rounded-lg text-xs font-semibold">
             Xóa mã này
           </button>
         </div>
@@ -790,10 +822,10 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
     sheetHtml += `
       <div>
         <div class="flex items-center justify-between mb-2.5">
-          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
             Phần I: Trắc Nghiệm Nhiều Lựa Chọn (${p1Num} câu)
           </h4>
-          <span class="text-[11px] text-slate-500">Chạm ô tròn để chọn/đổi</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">Chạm ô tròn để chọn/đổi</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
     `;
@@ -804,11 +836,11 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
       const opts = ["A", "B", "C", "D"];
 
       sheetHtml += `
-        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-between">
-          <span class="font-mono font-bold text-xs text-slate-500 w-7">C${qNum}</span>
+        <div class="p-2 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+          <span class="font-mono font-bold text-xs text-slate-500 dark:text-slate-400 w-7">C${qNum}</span>
           <div class="flex items-center space-x-1">
             ${opts.map(opt => `
-              <button onclick="setPart1Answer('${curMade}', ${q}, '${opt}')" class="bubble-choice ${curAns === opt ? 'selected' : ''}">
+              <button onclick="window.setPart1Answer('${curMade}', ${q}, '${opt}')" class="bubble-choice ${curAns === opt ? 'selected' : ''}">
                 ${opt}
               </button>
             `).join("")}
@@ -821,12 +853,12 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
 
   if (p2Num > 0) {
     sheetHtml += `
-      <div class="border-t border-slate-100 pt-4">
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-4">
         <div class="flex items-center justify-between mb-2.5">
-          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
             Phần II: Trắc Nghiệm Đúng / Sai (${p2Num} câu - Mỗi câu 4 ý a, b, c, d)
           </h4>
-          <span class="text-[11px] text-slate-500">Đ (Đúng - Xanh lá) | S (Sai - Đỏ)</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">Đ (Đúng - Xanh lá) | S (Sai - Đỏ)</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
     `;
@@ -838,8 +870,8 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
       const subLabels = ["a", "b", "c", "d"];
 
       sheetHtml += `
-        <div class="p-3 rounded-lg border border-slate-200 bg-slate-50">
-          <div class="font-bold text-xs text-slate-700 mb-2 pb-1 border-b border-slate-200">
+        <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          <div class="font-bold text-xs text-slate-700 dark:text-slate-300 mb-2 pb-1 border-b border-slate-200 dark:border-slate-700">
             CÂU ${qNum}
           </div>
           <div class="space-y-1.5">
@@ -847,12 +879,12 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
               const val = subs[sIdx] || "";
               return `
                 <div class="flex items-center justify-between text-xs">
-                  <span class="font-mono font-medium text-slate-600">${sLabel})</span>
+                  <span class="font-mono font-medium text-slate-600 dark:text-slate-400">${sLabel})</span>
                   <div class="flex items-center space-x-1">
-                    <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'Đ')" class="bubble-tf ${val === 'Đ' ? 'selected-true' : ''}">
+                    <button onclick="window.setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'Đ')" class="bubble-tf ${val === 'Đ' ? 'selected-true' : ''}">
                       Đ
                     </button>
-                    <button onclick="setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'S')" class="bubble-tf ${val === 'S' ? 'selected-false' : ''}">
+                    <button onclick="window.setPart2Answer('${curMade}', '${qKey}', ${sIdx}, 'S')" class="bubble-tf ${val === 'S' ? 'selected-false' : ''}">
                       S
                     </button>
                   </div>
@@ -868,12 +900,12 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
 
   if (p3Num > 0) {
     sheetHtml += `
-      <div class="border-t border-slate-100 pt-4">
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-4">
         <div class="flex items-center justify-between mb-2.5">
-          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
             Phần III: Trả Lời Ngắn (${p3Num} câu - Điền số)
           </h4>
-          <span class="text-[11px] text-slate-500">Nhập trực tiếp số</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">Nhập trực tiếp số</span>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
     `;
@@ -883,9 +915,9 @@ window.renderVisualAnswerSheet = function renderVisualAnswerSheet() {
       const curAns = curKey.part3[q] || "";
 
       sheetHtml += `
-        <div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50">
-          <label class="block font-bold text-[11px] text-slate-600 mb-1">CÂU ${qNum}</label>
-          <input type="text" value="${curAns}" onchange="setPart3Answer('${curMade}', ${q}, this.value)" placeholder="0.0" class="w-full py-1 px-2 rounded border border-slate-300 bg-white font-mono font-bold text-xs text-center text-slate-900 focus:outline-none focus:border-blue-600">
+        <div class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          <label class="block font-bold text-[11px] text-slate-600 dark:text-slate-400 mb-1">CÂU ${qNum}</label>
+          <input type="text" value="${curAns}" onchange="window.setPart3Answer('${curMade}', ${q}, this.value)" placeholder="0.0" class="w-full py-1 px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-center text-slate-900 dark:text-white focus:outline-none focus:border-blue-600">
         </div>
       `;
     }
@@ -1251,14 +1283,10 @@ window.switchTab = function switchTab(tabName) {
   window.appState.data.currentTab = tabName;
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
 
-  document.querySelectorAll(".tab-btn").forEach(el => {
-    el.classList.remove("text-blue-700", "border-blue-700", "font-bold");
-    el.classList.add("text-slate-500", "border-transparent", "font-medium");
-  });
+  document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
   const targetBtn = document.getElementById(`tabBtn_${tabName}`);
   if (targetBtn) {
-    targetBtn.classList.remove("text-slate-500", "border-transparent", "font-medium");
-    targetBtn.classList.add("text-blue-700", "border-blue-700", "font-bold");
+    targetBtn.classList.add("active");
   }
 
   document.querySelectorAll(".mobile-nav-item").forEach(el => el.classList.remove("active"));
@@ -1441,6 +1469,7 @@ window.showImportStudentsModal = function showImportStudentsModal() {
 
 // Khởi chạy khi tài liệu sẵn sàng
 window.addEventListener("DOMContentLoaded", () => {
+  window.initTheme && window.initTheme();
   window.updateExamSelect && window.updateExamSelect();
   window.renderStudentsList && window.renderStudentsList();
   window.renderTemplateGallery && window.renderTemplateGallery();
