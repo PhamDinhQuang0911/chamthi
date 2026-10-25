@@ -1627,46 +1627,46 @@ function stopCameraAndLoop() {
 }
 
 function updateCornerSquaresUI(cornerStatus, lockedCount) {
-  const ids = ["cornerBoxTL", "cornerBoxTR", "cornerBoxBR", "cornerBoxBL"];
+  const ids = ['cornerBoxTL', 'cornerBoxTR', 'cornerBoxBR', 'cornerBoxBL'];
   ids.forEach((id, idx) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const isLocked = cornerStatus && cornerStatus[idx];
+    const isLocked = !!(cornerStatus && cornerStatus[idx]);
     if (isLocked) {
-      el.classList.add("locked");
+      el.classList.add('locked');
     } else {
-      el.classList.remove("locked");
+      el.classList.remove('locked');
     }
   });
 
-  const badge = document.getElementById("cornerLockBadge");
+  const badge = document.getElementById('cornerLockBadge');
   if (badge) {
     if (Date.now() < scanCooldownUntil) {
-      badge.className = "inline-flex items-center px-3 py-1 bg-blue-600/90 text-white text-[11px] rounded-full font-bold shadow-md";
-      badge.innerText = "⏳ Đã chấm! Đang chờ đổi bài tiếp theo...";
+      badge.className = 'inline-flex items-center px-3.5 py-1 bg-blue-600/90 text-white text-[11px] rounded-full font-bold shadow-md';
+      badge.innerText = '✓ Đã chấm xong! Hãy đưa bài tiếp theo vào...';
     } else if (lockedCount === 4) {
-      badge.className = "inline-flex items-center px-3 py-1 bg-emerald-600 text-white text-[11px] rounded-full font-bold shadow-lg animate-pulse ring-2 ring-emerald-300";
-      badge.innerText = `🎯 Đã khóa 4 góc! Giữ yên để tự chấm (${consecutiveLockedFrames}/2)...`;
+      badge.className = 'inline-flex items-center px-3.5 py-1 bg-emerald-600 text-white text-[11px] rounded-full font-bold shadow-lg animate-pulse ring-2 ring-emerald-300';
+      badge.innerText = `🎯 Đã khóa 4 góc chuẩn QM! Giữ yên (${consecutiveLockedFrames}/2)...`;
     } else if (lockedCount > 0) {
-      badge.className = "inline-flex items-center px-3 py-1 bg-black/75 text-amber-400 text-[11px] rounded-full font-bold border border-amber-500/40 shadow";
-      badge.innerText = `🎯 Đang tìm góc: ${lockedCount}/4 ô vuông xanh`;
+      badge.className = 'inline-flex items-center px-3.5 py-1 bg-black/80 backdrop-blur-md text-amber-400 text-[11px] rounded-full font-bold border border-amber-500/40 shadow';
+      badge.innerText = `🎯 Đã bắt ${lockedCount}/4 góc... Căn nốt các góc còn lại`;
     } else {
-      badge.className = "inline-flex items-center px-3 py-1 bg-black/75 text-emerald-400 text-[11px] rounded-full font-bold border border-emerald-500/40 shadow";
-      badge.innerText = "🎯 Căn 4 góc phiếu vào 4 ô vuông xanh";
+      badge.className = 'inline-flex items-center px-3.5 py-1 bg-black/80 backdrop-blur-md text-emerald-400 text-[11px] rounded-full font-bold border border-emerald-500/40 shadow';
+      badge.innerText = '🎯 Căn 4 ô đen vào đúng 4 ô vuông xanh';
     }
   }
 }
 
 function triggerFlashOverlay() {
-  const fl = document.getElementById("scannerFlashOverlay");
+  const fl = document.getElementById('scannerFlashOverlay');
   if (fl) {
-    fl.classList.add("active");
-    setTimeout(() => { fl.classList.remove("active"); }, 180);
+    fl.classList.add('active');
+    setTimeout(() => { fl.classList.remove('active'); }, 180);
   }
 }
 
 function startCornerTrackingLoop() {
-  const video = document.getElementById("scannerVideo");
+  const video = document.getElementById('scannerVideo');
   if (!video) return;
 
   const checkFrame = (now) => {
@@ -1680,8 +1680,8 @@ function startCornerTrackingLoop() {
       return;
     }
 
-    // Điều tiết nhịp quét: mỗi 90ms quét 1 lần để mượt mà và không nóng máy
-    if (now - lastScanFrameTime < 90) {
+    // Nhịp quét 80ms (~12 fps) tối ưu CPU mượt mà trên mọi thiết bị
+    if (now - lastScanFrameTime < 80) {
       cornerTrackingTimer = requestAnimationFrame(checkFrame);
       return;
     }
@@ -1693,9 +1693,9 @@ function startCornerTrackingLoop() {
 
       if (cornerResult.lockedCount === 4) {
         consecutiveLockedFrames++;
-        const requiredFrames = 2; // 2 frame liên tiếp (~180ms - 200ms) để chống rung tay
+        const requiredFrames = 2; // Cần 2 frame liên tiếp chuẩn QM để xác nhận ổn định
 
-        // Nếu đã đủ 2 frame ổn định VÀ hết thời gian cooldown
+        // Nếu đã đủ 2 frame ổn định và hết thời gian cooldown
         if (isAutoScanActive && consecutiveLockedFrames >= requiredFrames && Date.now() > scanCooldownUntil) {
           consecutiveLockedFrames = 0;
           isScanningInProgress = true;
@@ -1703,24 +1703,28 @@ function startCornerTrackingLoop() {
           try {
             const exam = window.appState.getCurrentExam();
             if (exam) {
-              const gradeOutput = window.omrEngine.gradeFromImageSource(video, exam.config, exam.answerKeys);
-              const curKey = `${gradeOutput.result.sbd || ""}_${gradeOutput.result.made || ""}`;
+              triggerFlashOverlay();
+              if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                try { navigator.vibrate(80); } catch(e) {}
+              }
+              const gradeOutput = window.omrEngine.gradeFromImageSource(video, exam.config, exam.answerKeys, cornerResult.points);
+              const curKey = `${gradeOutput.result.sbd || ''}_${gradeOutput.result.made || ''}`;
 
               // Chống quét trùng bài vừa chấm trong 5 giây
               if (curKey && curKey === lastGradedKey && Date.now() < lastGradedTime + 5000) {
-                const badge = document.getElementById("cornerLockBadge");
+                const badge = document.getElementById('cornerLockBadge');
                 if (badge) {
-                  badge.innerText = "✅ Đã chấm bài này. Hãy đưa phiếu tiếp theo vào...";
+                  badge.innerText = '⚠️ Đã chấm bài này. Hãy đưa phiếu tiếp theo vào...';
                 }
               } else {
                 lastGradedKey = curKey;
                 lastGradedTime = Date.now();
-                scanCooldownUntil = Date.now() + 2200; // Cooldown 2.2 giây cho bài tiếp theo
+                scanCooldownUntil = Date.now() + 2200; // Cooldown 2.2 giây
                 saveGradedOutput(gradeOutput, exam, true);
               }
             }
           } catch (e) {
-            console.warn("Auto scan frame evaluation skipped:", e);
+            console.warn('Auto scan evaluation skipped:', e);
           } finally {
             setTimeout(() => { isScanningInProgress = false; }, 600);
           }
